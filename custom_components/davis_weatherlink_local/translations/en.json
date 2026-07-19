@@ -1,0 +1,63 @@
+{
+  "title": "Davis WeatherLink Local",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Davis WeatherLink",
+        "description": "Connect to the WeatherLink Local API. Enter a hostname, IP address, or base URL.",
+        "data": {
+          "host": "Host or URL",
+          "scan_interval": "Polling interval (seconds)"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Davis WeatherLink",
+        "description": "Change the WeatherLink address or polling interval.",
+        "data": {
+          "host": "Host or URL",
+          "scan_interval": "Polling interval (seconds)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect or the API returned invalid data"
+    },
+    "abort": {
+      "already_configured": "This WeatherLink device is already configured",
+      "unique_id_mismatch": "The new address belongs to a different WeatherLink device"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "last_update": {"name": "Last update"},
+      "temperature": {"name": "Temperature"},
+      "humidity": {"name": "Humidity"},
+      "dew_point": {"name": "Dew point"},
+      "wet_bulb_temperature": {"name": "Wet bulb temperature"},
+      "wind_speed": {"name": "Wind speed"},
+      "wind_direction": {"name": "Wind direction"},
+      "wind_speed_1_minute_average": {"name": "Wind speed 1 minute average"},
+      "wind_direction_1_minute_average": {"name": "Wind direction 1 minute average"},
+      "rain_collector_type": {"name": "Rain collector type"},
+      "rain_rate": {"name": "Rain rate"},
+      "highest_rain_rate": {"name": "Highest rain rate"},
+      "rainfall_last_15_minutes": {"name": "Rainfall last 15 minutes"},
+      "highest_rain_rate_last_15_minutes": {"name": "Highest rain rate last 15 minutes"},
+      "daily_rainfall": {"name": "Daily rainfall"},
+      "receiver_state": {"name": "Receiver state"},
+      "soil_temperature_1": {"name": "Soil temperature 1"},
+      "soil_temperature_2": {"name": "Soil temperature 2"},
+      "soil_temperature_3": {"name": "Soil temperature 3"},
+      "soil_temperature_4": {"name": "Soil temperature 4"},
+      "soil_moisture_1": {"name": "Soil moisture 1"},
+      "soil_moisture_2": {"name": "Soil moisture 2"},
+      "soil_moisture_3": {"name": "Soil moisture 3"},
+      "soil_moisture_4": {"name": "Soil moisture 4"},
+      "sea_level_pressure": {"name": "Sea level pressure"},
+      "absolute_pressure": {"name": "Absolute pressure"}
+    },
+    "binary_sensor": {
+      "transmitter_battery_low": {"name": "Transmitter battery low"}
+    }
+  }
+}

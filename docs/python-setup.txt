@@ -1,0 +1,39 @@
+1) Preparation
+
+    - Get the home assistant "core" version (Settings -> About)
+    - Get the required python version (Settings -> System -> Repairs, ... menu, System Information)
+
+2) In Visual Studio, install the Python extension
+
+3) Update Python
+    pymanager install --update 3.14
+    py --version
+
+4) Deactivate anty existing virtual environment if .venv exits
+    deactivate
+    Remove-Item -Recurse -Force ".venv"
+
+5) Create and activate a new virtual environment
+    py -V:3.14 -m venv .venv
+    Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+    .\.venv\Scripts\Activate.ps1
+
+6) Confirm that the virtual environment uses the correct Python.
+    python --version
+    ??? python -c "import sys; print(sys.executable)"
+
+7) Update pip and install HA
+    python -m pip install --upgrade pip setuptools wheel
+    python -m pip install "homeassistant==<version>"
+
+8) Verify
+    python -c "import homeassistant; print(homeassistant.__file__)"
+    (expect ...\.venv\Lib\site-packages\homeassistant\__init__.py  error messages)
+
+
+9( Add to .\.vscode\settings.json
+    {
+        "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+        "python.analysis.autoImportCompletions": true,
+        "python.analysis.typeCheckingMode": "basic"
+    }
