@@ -1,0 +1,448 @@
+sensor:
+  - name: davis_weatherlink_pro_currrent
+    platform: rest
+    resource: "http://weatherlink.home/v1/current_conditions"
+    scan_interval: 10
+    timeout: 10
+    json_attributes:
+      - data
+
+    # Using the API timestamp ensures the sensor state changes on each update.
+    value_template: "{{ value_json.data.ts }}"
+
+
+template:
+  - triggers:
+      - trigger: state
+        entity_id: sensor.davis_weatherlink_pro_currrent
+
+    variables:
+      # Outdoor Station: txid 1
+      outdoor: >-
+        {% set ns = namespace(value=none) %}
+        {% set data = state_attr(
+          "sensor.davis_weatherlink_pro_currrent",
+          "data"
+        ) %}
+        {% if data is mapping %}
+          {% for condition in data.get("conditions", []) %}
+            {% if condition.txid is defined and condition.txid == 1 %}
+              {% set ns.value = condition %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {{ ns.value }}
+
+      # Soil station: txid 5
+      soil: >-
+        {% set ns = namespace(value=none) %}
+        {% set data = state_attr(
+          "sensor.davis_weatherlink_pro_currrent",
+          "data"
+        ) %}
+        {% if data is mapping %}
+          {% for condition in data.get("conditions", []) %}
+            {% if condition.txid is defined and condition.txid == 5 %}
+              {% set ns.value = condition %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {{ ns.value }}
+
+      # Indoor console conditions: data_structure_type 4
+      indoor: >-
+        {% set ns = namespace(value=none) %}
+        {% set data = state_attr(
+          "sensor.davis_weatherlink_pro_currrent",
+          "data"
+        ) %}
+        {% if data is mapping %}
+          {% for condition in data.get("conditions", []) %}
+            {% if
+              condition.data_structure_type is defined
+              and condition.data_structure_type == 4
+            %}
+              {% set ns.value = condition %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {{ ns.value }}
+
+      # Barometer: data_structure_type 3
+      barometer: >-
+        {% set ns = namespace(value=none) %}
+        {% set data = state_attr(
+          "sensor.davis_weatherlink_pro_currrent",
+          "data"
+        ) %}
+        {% if data is mapping %}
+          {% for condition in data.get("conditions", []) %}
+            {% if
+              condition.data_structure_type is defined
+              and condition.data_structure_type == 3
+            %}
+              {% set ns.value = condition %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {{ ns.value }}
+
+    sensor:
+      # ---------------------------------------------------------------------
+      # API metadata
+      # ---------------------------------------------------------------------
+
+      - name: "Davis WeatherLink Last Update"
+        unique_id: davis_weatherlink_last_update
+        device_class: timestamp
+        state: >-
+          {% set data = state_attr(
+            "sensor.davis_weatherlink_pro_currrent",
+            "data"
+          ) %}
+          {{ data.ts | timestamp_local
+             if data is mapping and data.ts is number
+             else none }}
+
+      # ---------------------------------------------------------------------
+      # Outdoor conditions: txid 1
+      # ---------------------------------------------------------------------
+
+      - name: "Davis Outdoor Temperature"
+        unique_id: davis_outdoor_temperature
+        device_class: temperature
+        unit_of_measurement: "°C"
+        state_class: measurement
+        state: >-
+          {{ ((outdoor.temp - 32) * 5 / 9) | round(1)
+             if outdoor is mapping and outdoor.temp is number
+             else none }}
+
+      - name: "Davis Outdoor Humidity"
+        unique_id: davis_outdoor_humidity
+        device_class: humidity
+        unit_of_measurement: "%"
+        state_class: measurement
+        state: >-
+          {{ outdoor.hum
+             if outdoor is mapping and outdoor.hum is number
+             else none }}
+
+      - name: "Davis Outdoor Dew Point"
+        unique_id: davis_outdoor_dew_point
+        device_class: temperature
+        unit_of_measurement: "°C"
+        state_class: measurement
+        state: >-
+          {{ ((outdoor.dew_point - 32) * 5 / 9) | round(1)
+             if outdoor is mapping and outdoor.dew_point is number
+             else none }}
+
+      - name: "Davis Outdoor Wet Bulb Temperature"
+        unique_id: davis_outdoor_wet_bulb_temperature
+        device_class: temperature
+        unit_of_measurement: "°C"
+        state_class: measurement
+        state: >-
+          {{ ((outdoor.wet_bulb - 32) * 5 / 9) | round(1)
+             if outdoor is mapping and outdoor.wet_bulb is number
+             else none }}
+
+      - name: "Davis Wind Speed"
+        unique_id: davis_wind_speed
+        device_class: wind_speed
+        unit_of_measurement: "mph"
+        state_class: measurement
+        state: >-
+          {{ outdoor.wind_speed_last
+             if outdoor is mapping
+             and outdoor.wind_speed_last is number
+             else none }}
+
+      - name: "Davis Wind Direction"
+        unique_id: davis_wind_direction
+        device_class: wind_direction
+        unit_of_measurement: "°"
+        state_class: measurement_angle
+        state: >-
+          {{ outdoor.wind_dir_last
+             if outdoor is mapping
+             and outdoor.wind_dir_last is number
+             else none }}
+
+      - name: "Davis Wind Speed 1 Minute Average"
+        unique_id: davis_wind_speed_1_minute_average
+        device_class: wind_speed
+        unit_of_measurement: "mph"
+        state_class: measurement
+        state: >-
+          {{ outdoor.wind_speed_avg_last_1_min
+             if outdoor is mapping
+             and outdoor.wind_speed_avg_last_1_min is number
+             else none }}
+
+      - name: "Davis Wind Direction 1 Minute Average"
+        unique_id: davis_wind_direction_1_minute_average
+        device_class: wind_direction
+        unit_of_measurement: "°"
+        state_class: measurement_angle
+        state: >-
+          {{ outdoor.wind_dir_scalar_avg_last_1_min
+             if outdoor is mapping
+             and outdoor.wind_dir_scalar_avg_last_1_min is number
+             else none }}
+
+      - name: "Davis Rain Collector Type"
+        unique_id: davis_rain_collector_type
+        state: >-
+          {{ outdoor.rain_size
+             if outdoor is mapping and outdoor.rain_size is number
+             else none }}
+
+      - name: "Davis Rain Rate"
+        unique_id: davis_rain_rate
+        unit_of_measurement: "counts/h"
+        state_class: measurement
+        icon: mdi:weather-rainy
+        state: >-
+          {{ outdoor.rain_rate_last
+             if outdoor is mapping
+             and outdoor.rain_rate_last is number
+             else none }}
+
+      - name: "Davis Highest Rain Rate"
+        unique_id: davis_highest_rain_rate
+        unit_of_measurement: "counts/h"
+        state_class: measurement
+        icon: mdi:weather-pouring
+        state: >-
+          {{ outdoor.rain_rate_hi
+             if outdoor is mapping
+             and outdoor.rain_rate_hi is number
+             else none }}
+
+      - name: "Davis Rainfall Last 15 Minutes"
+        unique_id: davis_rainfall_last_15_minutes
+        unit_of_measurement: "counts"
+        state_class: measurement
+        icon: mdi:weather-rainy
+        state: >-
+          {{ outdoor.rainfall_last_15_min
+             if outdoor is mapping
+             and outdoor.rainfall_last_15_min is number
+             else none }}
+
+      - name: "Davis Highest Rain Rate Last 15 Minutes"
+        unique_id: davis_highest_rain_rate_last_15_minutes
+        unit_of_measurement: "counts/h"
+        state_class: measurement
+        icon: mdi:weather-pouring
+        state: >-
+          {{ outdoor.rain_rate_hi_last_15_min
+             if outdoor is mapping
+             and outdoor.rain_rate_hi_last_15_min is number
+             else none }}
+
+      - name: "Davis Daily Rainfall"
+        unique_id: davis_daily_rainfall
+        unit_of_measurement: "counts"
+        state_class: total_increasing
+        icon: mdi:weather-rainy
+        state: >-
+          {{ outdoor.rainfall_daily
+             if outdoor is mapping
+             and outdoor.rainfall_daily is number
+             else none }}
+
+      - name: "Davis Receiver State"
+        unique_id: davis_sreceiver_state
+        icon: mdi:radio-tower
+        state: >-
+          {% if outdoor is not mapping or outdoor.rx_state is not number %}
+            {{ none }}
+          {% elif outdoor.rx_state == 0 %}
+            Ok
+          {% elif outdoor.rx_state == 1 %}
+            Unreliable
+          {% elif outdoor.rx_state == 2 %}
+            Disconnected
+          {% else %}
+            Unknown
+          {% endif %}
+
+      # ---------------------------------------------------------------------
+      # Soil station: txid 5
+      # ---------------------------------------------------------------------
+
+      - name: "Davis Soil Temperature 1"
+        unique_id: davis_soil_temperature_1
+        device_class: temperature
+        unit_of_measurement: "°C"
+        state_class: measurement
+        state: >-
+          {{ ((soil.temp_1 - 32) * 5 / 9) | round(1)
+             if soil is mapping and soil.temp_1 is number
+             else none }}
+
+      - name: "Davis Soil Temperature 2"
+        unique_id: davis_soil_temperature_2
+        device_class: temperature
+        unit_of_measurement: "°C"
+        state_class: measurement
+        state: >-
+          {{ ((soil.temp_2 - 32) * 5 / 9) | round(1)
+             if soil is mapping and soil.temp_2 is number
+             else none }}
+
+      - name: "Davis Soil Temperature 3"
+        unique_id: davis_soil_temperature_3
+        device_class: temperature
+        unit_of_measurement: "°C"
+        state_class: measurement
+        state: >-
+          {{ ((soil.temp_3 - 32) * 5 / 9) | round(1)
+             if soil is mapping and soil.temp_3 is number
+             else none }}
+
+      - name: "Davis Soil Temperature 4"
+        unique_id: davis_soil_temperature_4
+        device_class: temperature
+        unit_of_measurement: "°C"
+        state_class: measurement
+        state: >-
+          {{ ((soil.temp_4 - 32) * 5 / 9) | round(1)
+             if soil is mapping and soil.temp_4 is number
+             else none }}
+
+      - name: "Davis Soil Moisture 1"
+        unique_id: davis_soil_moisture_1
+        device_class: pressure
+        unit_of_measurement: "kPa"
+        state_class: measurement
+        state: >-
+          {{ soil.moist_soil_1
+             if soil is mapping and soil.moist_soil_1 is number
+             else none }}
+
+      - name: "Davis Soil Moisture 2"
+        unique_id: davis_soil_moisture_2
+        device_class: pressure
+        unit_of_measurement: "kPa"
+        state_class: measurement
+        state: >-
+          {{ soil.moist_soil_2
+             if soil is mapping and soil.moist_soil_2 is number
+             else none }}
+
+      - name: "Davis Soil Moisture 3"
+        unique_id: davis_soil_moisture_3
+        device_class: pressure
+        unit_of_measurement: "kPa"
+        state_class: measurement
+        state: >-
+          {{ soil.moist_soil_3
+             if soil is mapping and soil.moist_soil_3 is number
+             else none }}
+
+      - name: "Davis Soil Moisture 4"
+        unique_id: davis_soil_moisture_4
+        device_class: pressure
+        unit_of_measurement: "kPa"
+        state_class: measurement
+        state: >-
+          {{ soil.moist_soil_4
+             if soil is mapping and soil.moist_soil_4 is number
+             else none }}
+
+      - name: "Davis Soil Receiver State"
+        unique_id: davis_soil_receiver_state
+        icon: mdi:radio-tower
+        state: >-
+          {% if soil is not mapping or soil.rx_state is not number %}
+            {{ none }}
+          {% elif soil.rx_state == 0 %}
+            Ok
+          {% elif soil.rx_state == 1 %}
+            Unreliable
+          {% elif soil.rx_state == 2 %}
+            Disconnected
+          {% else %}
+            Unknown
+          {% endif %}
+
+      # ---------------------------------------------------------------------
+      # Indoor conditions: data_structure_type 4
+      # ---------------------------------------------------------------------
+
+      - name: "Davis Indoor Temperature"
+        unique_id: davis_indoor_temperature
+        device_class: temperature
+        unit_of_measurement: "°C"
+        state_class: measurement
+        state: >-
+          {{ ((indoor.temp_in - 32) * 5 / 9) | round(1)
+             if indoor is mapping and indoor.temp_in is number
+             else none }}
+
+      - name: "Davis Indoor Humidity"
+        unique_id: davis_indoor_humidity
+        device_class: humidity
+        unit_of_measurement: "%"
+        state_class: measurement
+        state: >-
+          {{ indoor.hum_in
+             if indoor is mapping and indoor.hum_in is number
+             else none }}
+
+      - name: "Davis Indoor Dew Point"
+        unique_id: davis_indoor_dew_point
+        device_class: temperature
+        unit_of_measurement: "°C"
+        state_class: measurement
+        state: >-
+          {{ ((indoor.dew_point_in - 32) * 5 / 9) | round(1)
+             if indoor is mapping and indoor.dew_point_in is number
+             else none }}
+
+      # ---------------------------------------------------------------------
+      # Barometer: data_structure_type 3
+      # ---------------------------------------------------------------------
+
+      - name: "Davis Sea Level Pressure"
+        unique_id: davis_sea_level_pressure
+        device_class: atmospheric_pressure
+        unit_of_measurement: "hPa"
+        state_class: measurement
+        state: >-
+          {{ (barometer.bar_sea_level * 33.8638866667) | round(1)
+             if barometer is mapping
+             and barometer.bar_sea_level is number
+             else none }}
+
+      - name: "Davis Absolute Pressure"
+        unique_id: davis_absolute_pressure
+        device_class: atmospheric_pressure
+        unit_of_measurement: "hPa"
+        state_class: measurement
+        state: >-
+          {{ (barometer.bar_absolute * 33.8638866667) | round(1)
+             if barometer is mapping
+             and barometer.bar_absolute is number
+             else none }}
+
+    binary_sensor:
+      - name: "Davis Outdoor Transmitter Battery Low"
+        unique_id: davis_outdoor_transmitter_battery_low
+        device_class: battery
+        availability: >-
+          {{ outdoor is mapping
+             and outdoor.trans_battery_flag is defined }}
+        state: "{{ outdoor.trans_battery_flag | int(0) != 0 }}"
+
+      - name: "Davis Soil Transmitter Battery Low"
+        unique_id: davis_soil_transmitter_battery_low
+        device_class: battery
+        availability: >-
+          {{ soil is mapping
+             and soil.trans_battery_flag is defined }}
+        state: "{{ soil.trans_battery_flag | int(0) != 0 }}"
