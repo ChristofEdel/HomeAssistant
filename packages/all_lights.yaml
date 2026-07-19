@@ -1,0 +1,73 @@
+# Define a sensor "lights_on_count" that has all the lights
+# in the group "all_lights_group".
+
+light:
+  - platform: group
+    name: "All Lights"
+    unique_id: all_lights_group
+    all: false
+    entities:
+      - light.external_door
+      - light.ground_floor_hallway
+      - light.ground_floor_sewing_room
+      - light.ground_floor_staircase
+      - light.ground_floor_guest_bedroom
+      - light.extension_library
+      - light.extension_1
+      - light.extension_2
+      - light.extension_table
+      - light.living_room_front
+      - light.living_room_back
+      - light.living_room_left
+      - light.living_room_right
+      - light.mezzanine_a
+      - light.mezzanine_b
+      - light.mezzanine_c
+      - light.mezzanine_d
+      - light.1st_floor_landing
+      - light.1st_floor_cinema
+      - light.1st_floor_hallway_2
+      - light.1st_floor_dressing
+      - light.1st_floor_bathroom
+      - light.1st_floor_bedroom
+      - light.kitchen_a
+      - light.kitchen_b
+      - light.kitchen_c
+      - light.kitchen_d
+      - light.kitchen_e
+      - light.kitchen_table
+      - light.basement
+
+template:
+  - sensor:
+      - name: "Lights On"
+        unique_id: lights_on_count
+        icon: mdi:lightbulb-group
+        state: >
+          {{
+            expand("light.all_lights")
+            | selectattr("state", "eq", "on")
+            | list
+            | count
+          }}
+
+script:
+  turn_off_active_lights:
+    alias: Turn off active lights
+    mode: single
+    sequence:
+      - variables:
+          active_lights: >
+            {{
+              expand(state_attr('light.all_lights', 'entity_id'))
+              | selectattr('state', 'eq', 'on')
+              | map(attribute='entity_id')
+              | list
+            }}
+
+      - condition: template
+        value_template: "{{ active_lights | count > 0 }}"
+
+      - action: light.turn_off
+        target:
+          entity_id: "{{ active_lights }}"

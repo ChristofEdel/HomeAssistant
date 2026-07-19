@@ -1,0 +1,397 @@
+# Blauberg S21 MHRV integration wiva Modbus
+
+template:
+  - number:
+      - name: "MHRV Manual Fan Speed"
+        unique_id: mhrv_manual_fan_speed
+        icon: mdi:fan
+        unit_of_measurement: "%"
+        min: 0
+        max: 100
+        step: 1
+        optimistic: false
+
+        availability: >
+          {{ is_number(states('sensor.mhrv_fan_mode_raw'))
+             and is_number(states('sensor.mhrv_manual_fan_percentage')) }}
+
+        # Show the percentage only while register 2 contains 255.
+        # For Low, Medium or High, show zero.
+        state: >
+          {% if states('sensor.mhrv_fan_mode_raw') | int(-1) == 255 %}
+            {{ states('sensor.mhrv_manual_fan_percentage') | int(0) }}
+          {% else %}
+            0
+          {% endif %}
+
+        set_value:
+          - variables:
+              requested_value: "{{ value | int }}"
+
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ requested_value > 0 }}"
+
+                sequence:
+                  # Write the new manual percentage.
+                  - action: modbus.write_register
+                    data:
+                      hub: mhrv
+                      slave: 1
+                      address: 17
+                      value: "{{ requested_value }}"
+
+                  # Immediately request a fresh read of register 17.
+                  - action: homeassistant.update_entity
+                    target:
+                      entity_id: sensor.mhrv_manual_fan_percentage
+
+                  # Do not enable manual mode until the new value has been read back.
+                  - wait_template: >
+                      {{ states('sensor.mhrv_manual_fan_percentage')
+                        | int(-1) == requested_value }}
+                    timeout: "00:00:10"
+                    continue_on_timeout: false
+
+                  # Enable percentage/manual mode only after readback is current.
+                  - action: modbus.write_register
+                    data:
+                      hub: mhrv
+                      slave: 1
+                      address: 2
+                      value: 255
+  - fan:
+      - name: MHRV Fan Control
+        unique_id: mhrv_fan_control
+        icon: mdi:fan
+
+        state: >
+          {{ not is_state('climate.ventilation_air', 'off') }}
+
+        percentage: >
+          {{ states('number.mhrv_manual_fan_speed') | int(0) }}
+
+        speed_count: 100
+
+        preset_modes:
+          - low
+          - medium
+          - high
+
+        # Do not report an active preset while manual speed is non-zero.
+        preset_mode: >
+          {% set manual_speed =
+               states('number.mhrv_manual_fan_speed') | int(0) %}
+          {% set climate_mode =
+               state_attr('climate.ventilation_air', 'fan_mode') %}
+          {{ climate_mode
+             if manual_speed == 0
+             and climate_mode in ['low', 'medium', 'high']
+             else none }}
+
+        set_percentage:
+          - action: number.set_value
+            target:
+              entity_id: number.mhrv_manual_fan_speed
+            data:
+              value: "{{ percentage }}"
+
+        set_preset_mode:
+          # Clear the previous manual value first.
+          - action: number.set_value
+            target:
+              entity_id: number.mhrv_manual_fan_speed
+            data:
+              value: 0
+
+          - action: climate.set_fan_mode
+            target:
+              entity_id: climate.ventilation_air
+            data:
+              fan_mode: "{{ preset_mode }}"
+
+        turn_on:
+          - action: climate.turn_on
+            target:
+              entity_id: climate.ventilation_air
+
+        turn_off:
+          - action: climate.turn_off
+            target:
+              entity_id: climate.ventilation_air
+
+  - select:
+      - name: "MHRV Bypass Mode"
+        unique_id: mhrv_bypass_mode
+        icon: mdi:arrow-decision
+
+        # Only make the select available when the register contains
+        # one of the documented values.
+        availability: >
+          {{ states('sensor.mhrv_bypass_mode_raw') in ['0', '1', '2'] }}
+
+        # Translate the numeric Modbus value into a readable state.
+        state: >
+          {% set value = states('sensor.mhrv_bypass_mode_raw') | int %}
+          {{ {
+            0: 'Off',
+            1: 'On',
+            2: 'Auto'
+          }[value] }}
+
+        options: "{{ ['Off', 'On', 'Auto'] }}"
+
+        # Translate the selected option back into the value written
+        # to holding register 74.
+        select_option:
+          - action: modbus.write_register
+            data:
+              hub: mhrv
+              slave: 1
+              address: 74
+              value: >
+                {{ {
+                  'Off': 0,
+                  'On': 1,
+                  'Auto': 2
+                }[option] }}
+  - sensor:
+      # calculated sensors
+      - name: "MHRV Gain"
+        unique_id: mhrv_gain
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        availability: >
+          {{ is_number(states('sensor.mhrv_supply_temperature'))
+              and is_number(states('sensor.mhrv_intake_temperature')) }}
+        state: >
+          {{ (
+            states('sensor.mhrv_supply_temperature') | float
+            - states('sensor.mhrv_intake_temperature') | float
+          ) | round(1) }}
+
+      # calculated sensors
+      - name: "MHRV Recovery"
+        unique_id: mhrv_recovery
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        availability: >
+          {{ is_number(states('sensor.mhrv_extract_temperature'))
+              and is_number(states('sensor.mhrv_exhaust_temperature')) }}
+        state: >
+          {{ (
+            states('sensor.mhrv_extract_temperature') | float
+            - states('sensor.mhrv_exhaust_temperature') | float
+          ) | round(1) }}
+
+modbus:
+  - name: mhrv
+    type: tcp
+    host: mhrv.home
+    port: 502
+    timeout: 5
+    message_wait_milliseconds: 100
+
+    climates:
+      - name: "Ventilation Air"
+        unique_id: mhrv_air
+        slave: 1
+
+        # Current temperature
+        address: 2                  # "Input Register" 2
+        input_type: input
+        data_type: int16
+        temperature_unit: C
+        current_temp_scale: 0.1
+        precision: 1
+
+        # Target temperature
+        target_temp_register: 44    # "Holding Register" 44
+        target_temp_scale: 1
+        min_temp: 15
+        max_temp: 30
+        temp_step: 1
+
+        # On / Off
+        hvac_onoff_coil: 0          # coil 0 = master On/Off control
+
+        # Fan mode
+        fan_mode_register:
+          address: 2                # "Holding Register" 2
+          values:
+            state_fan_low: 1
+            state_fan_medium: 2
+            state_fan_high: 3
+            state_fan_auto: 255   # represents "manual" fan control
+
+        scan_interval: 5 # Seconds
+
+    sensors:
+      - name: "MHRV Intake Temperature"
+        unique_id: mhrv_intake_temperature
+        slave: 1
+        address: 1
+        input_type: input
+        data_type: int16
+        scale: 0.1
+        precision: 1
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        scan_interval: 5
+
+      - name: "MHRV Supply Temperature"
+        unique_id: mhrv_supply_temperature
+        slave: 1
+        address: 2
+        input_type: input
+        data_type: int16
+        scale: 0.1
+        precision: 1
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        scan_interval: 5
+
+      - name: "MHRV Extract Temperature"
+        unique_id: mhrv_extract_temperature
+        slave: 1
+        address: 3
+        input_type: input
+        data_type: int16
+        scale: 0.1
+        precision: 1
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        scan_interval: 5
+
+      - name: "MHRV Exhaust Temperature"
+        unique_id: mhrv_exhaust_temperature
+        slave: 1
+        address: 4
+        input_type: input
+        data_type: int16
+        scale: 0.1
+        precision: 1
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        scan_interval: 5
+
+      - name: "MHRV Humidity"
+        unique_id: mhrv_humidity
+        slave: 1
+        address: 10
+        input_type: input
+        data_type: uint16
+        nan_value: 0
+        unit_of_measurement: "%"
+        device_class: humidity
+        state_class: measurement
+        scan_interval: 5
+
+      - name: "MHRV Fan Mode Raw"
+        # Indicates whether the controller is using a preset or manual percentage:
+        #   1   = Low
+        #   2   = Medium
+        #   3   = High
+        #   255 = Manual percentage
+        unique_id: mhrv_fan_mode_raw
+        slave: 1
+        address: 2
+        input_type: holding
+        data_type: uint16
+        scan_interval: 5
+
+      - name: "MHRV Supply Fan Speed"
+        unique_id: mhrv_supply_fan_speed
+        slave: 1
+        address: 23
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "rpm"
+        state_class: measurement
+        scan_interval: 5
+
+      - name: "MHRV Extract Fan Speed"
+        unique_id: mhrv_extract_fan_speed
+        slave: 1
+        address: 24
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "rpm"
+        state_class: measurement
+        scan_interval: 5
+
+      - name: "MHRV Bypass Position"
+        unique_id: mhrv_bypass_position
+        slave: 1
+        address: 51
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "%"
+        state_class: measurement
+        scan_interval: 5
+
+      - name: "MHRV Bypass Mode Raw"
+        unique_id: mhrv_bypass_mode_raw
+        slave: 1
+        address: 74
+        input_type: holding
+        data_type: uint16
+        scan_interval: 5
+
+      - name: "MHRV Filter State"
+        unique_id: mhrv_filter_state
+        slave: 1
+        address: 31
+        input_type: input
+        data_type: uint16
+        scan_interval: 5
+
+      - name: "MHRV Alarm Code"
+        unique_id: mhrv_alarm_code
+        slave: 1
+        address: 38
+        input_type: input
+        data_type: uint16
+        scan_interval: 5
+
+      - name: "MHRV Maximum Fan Level"
+        unique_id: mhrv_maximum_fan_level
+        slave: 1
+        address: 1
+        input_type: holding
+        data_type: uint16
+        scan_interval: 5
+
+      - name: "MHRV Manual Fan Percentage"
+        unique_id: mhrv_manual_fan_percentage
+        slave: 1
+        address: 17
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "%"
+        scan_interval: 5
+
+    switches:
+      - name: "MHRV Boost"
+        unique_id: blauberg_s21_boost
+        slave: 1
+        address: 13
+        write_type: coil
+        # Actual boost state is reported separately
+        verify:
+          input_type: coil
+          address: 3
+          state_on: 1
+          state_off: 0
+        scan_interval: 5
+
+
+
+

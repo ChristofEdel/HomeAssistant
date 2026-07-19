@@ -1,0 +1,19 @@
+sensor:
+  - platform: integration
+    source: sensor.dtu_4121a016d2f3_pv_power
+    name: Solar Energy Total
+    unique_id: solar_energy_total
+    unit_prefix: k
+    unit_time: h
+    method: trapezoidal
+    round: 3
+    max_sub_interval:
+      minutes: 1
+
+utility_meter:
+  solar_production_today:
+    source: sensor.solar_energy_total
+    name: Solar Production Today
+    unique_id: solar_production_today
+    cycle: daily
+    periodically_resetting: false
