@@ -1,0 +1,130 @@
+/* Overall layout ***********************************************************************/
+
+:host {
+    display: block;
+    /* height: 100%;
+    box-sizing: border-box; */
+}
+
+.floorplan-wrap {
+    position: relative;
+    margin: 0 auto;
+    max-width: 100%;
+}
+
+.floorplan {
+    display: block;
+    width: 100%;
+    height: auto;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+/* Card display *************************************************************************/
+
+ha-card {
+    display: block;
+    border: 0;
+    overflow: hidden;
+}
+
+ha-card.transparent {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+
+/* Icon display *************************************************************************/
+
+/* Level 1 - the wrapper containing the actual icon */
+
+.entity-icon-wrap {
+    position: absolute;
+    /* display: grid;
+    place-items: center; */
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    z-index: 3;
+    aspect-ratio: 1;
+    color: var(--state-icon-color);
+    touch-action: manipulation;
+}
+
+.entity-icon-wrap.on {
+    color: var(--state-light-active-color, var(--warning-color));
+}
+
+.entity-icon-wrap.off {
+    color: var(--state-icon-color);
+}
+
+.entity-icon-wrap.unavailable {
+    opacity: 0.4;
+}
+
+/* change the outline style for the icons */
+.entity-icon-wrap {
+    outline: none;
+}
+.entity-icon-wrap:focus-visible {
+    border-radius: 50%;
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Level 2 - the actual icon */
+
+.entity-icon {
+    /* display: block; */
+    width: 100%;
+    height: 100%;
+    --mdc-icon-size: 100%;
+}
+
+/* Grid display *************************************************************************/
+/* Grid to help with positioning of icons */
+/* only shown when show_grid is true */
+
+.position-grid {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.grid-line {
+    position: absolute;
+    background: rgba(255, 0, 0, 0.45);
+}
+
+.grid-line.vertical {
+    top: 0;
+    bottom: 0;
+    width: 1px;
+}
+
+.grid-line.horizontal {
+    left: 0;
+    right: 0;
+    height: 1px;
+}
+
+.grid-label {
+    position: absolute;
+    font-size: 11px;
+    color: red;
+    background: rgba(255, 255, 255, 0.75);
+    padding: 1px 3px;
+    z-index: 2;
+}
+
+.grid-label.x {
+    top: 0;
+    transform: translateX(-50%);
+}
+
+.grid-label.y {
+    left: 0;
+    transform: translateY(-50%);
+}

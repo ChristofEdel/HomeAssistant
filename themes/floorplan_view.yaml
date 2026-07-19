@@ -1,0 +1,13 @@
+floorplan_view:
+  ha-view-sections-column-min-width: 600px
+  ha-view-sections-column-max-width: 1400px
+  ha-view-sections-column-gap: 0px
+  ha-view-sections-narrow-column-gap: 0px
+  ha-section-border-radius: 0px
+  ha-card-border-radius: 0px
+  ha-card-border-width: 0px
+  ha-card-box-shadow: none
+  ha-badge-size: 48px
+  ha-badge-icon-size: 26px
+  ha-badge-font-size: 18px
+  ha-view-sections-row-gap: 4px
