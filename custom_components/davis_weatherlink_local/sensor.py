@@ -81,6 +81,7 @@ SENSORS: tuple[DavisSensorDescription, ...] = (
         source=SOURCE_ROOT,
         field="ts",
         device_key=DEVICE_HUB,
+        transform=_timestamp,
         device_class=SensorDeviceClass.TIMESTAMP,
     ),
     DavisSensorDescription(
