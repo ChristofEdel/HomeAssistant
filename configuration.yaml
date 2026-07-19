@@ -11,6 +11,9 @@ http:
   trusted_proxies:
     - 172.16.0.0/12
 
+recorder:
+  purge_keep_days: 365
+
 # Load frontend themes from the themes folder
 frontend:
   themes: !include_dir_merge_named themes
@@ -20,6 +23,4 @@ frontend:
 automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
-
-
 
