@@ -1,0 +1,148 @@
+:host {
+  display: block;
+}
+
+ha-card.solar-panel-card {
+  position: relative;
+  box-sizing: border-box;
+  height: var(--solar-panel-card-height, 150px);
+  overflow: hidden;
+  cursor: pointer;
+  background: var(
+    --ha-card-background,
+    var(--card-background-color)
+  );
+}
+
+/*
+ * This layer is the gauge.
+ *
+ * Its bottom edge remains fixed and its height changes
+ * from 0% to 100% according to the sensor value.
+ */
+.level-fill {
+  position: absolute;
+  z-index: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+
+  height: var(
+    --solar-panel-fill-percentage,
+    0%
+  );
+
+  background: var(
+    --solar-panel-fill-color,
+    var(--primary-color)
+  );
+
+  opacity: var(
+    --solar-panel-fill-opacity,
+    0.4
+  );
+
+  transition: height 300ms ease;
+}
+
+/*
+ * Content is positioned above the gauge layer.
+ */
+.content {
+  position: relative;
+  z-index: 1;
+
+  display: grid;
+  grid-template-rows: auto 1fr;
+
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+}
+
+.value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 34px;
+
+  color: var(--primary-text-color);
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+
+  /*
+   * Keeps the text readable when the fill boundary
+   * passes through it.
+   */
+  text-shadow:
+    0 1px 2px
+      var(--card-background-color),
+    0 0 4px
+      var(--card-background-color);
+}
+
+.graph {
+  position: relative;
+  align-self: end;
+
+  width: 100%;
+  height: var(
+    --solar-panel-graph-height,
+    80px
+  );
+
+  margin-top: 8px;
+}
+
+.graph svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.graph-fill {
+  fill: var(
+    --solar-panel-graph-color,
+    var(--state-icon-color)
+  );
+  fill-opacity: 0.1;
+  stroke: none;
+}
+
+.graph-line {
+  fill: none;
+
+  stroke: var(
+    --solar-panel-graph-color,
+    var(--state-icon-color)
+  );
+
+  stroke-width: 2;
+  stroke-opacity: 0.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.graph-baseline {
+  stroke: var(--primary-text-color);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.message {
+  position: absolute;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: var(--secondary-text-color);
+  font-size: 0.85rem;
+}
