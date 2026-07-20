@@ -1,0 +1,310 @@
+update_now:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          multiple: true
+          filter:
+            integration: "zcsmower"
+          entity:
+            domain: "device_tracker"
+
+wake_up:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          multiple: true
+          filter:
+            integration: "zcsmower"
+          entity:
+            domain: "device_tracker"
+
+set_profile:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          multiple: true
+          filter:
+            integration: "zcsmower"
+          entity:
+            domain: "device_tracker"
+    profile:
+      required: true
+      example: 1
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 3
+          mode: box
+
+work_now:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          multiple: true
+          filter:
+            integration: "zcsmower"
+          entity:
+            domain: "device_tracker"
+
+work_for:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          multiple: true
+          filter:
+            integration: "zcsmower"
+          entity:
+            domain: "device_tracker"
+    duration:
+      required: true
+      example: 30
+      default: 60
+      selector:
+        number:
+          min: 1
+          max: 1439
+          step: 1
+          mode: slider
+          unit_of_measurement: minutes
+    area:
+      example: 1
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 8
+          mode: box
+
+work_until:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          multiple: true
+          filter:
+            integration: "zcsmower"
+          entity:
+            domain: "device_tracker"
+    hours:
+      required: true
+      example: 12
+      default: 12
+      selector:
+        number:
+          min: 0
+          max: 23
+          step: 1
+          mode: slider
+    minutes:
+      required: true
+      example: 30
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 59
+          step: 1
+          mode: slider
+    area:
+      example: 1
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 8
+          mode: box
+
+border_cut:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          multiple: true
+          filter:
+            integration: "zcsmower"
+          entity:
+            domain: "device_tracker"
+
+charge_now:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          multiple: true
+          filter:
+            integration: "zcsmower"
+          entity:
+            domain: "device_tracker"
+
+charge_for:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          multiple: true
+          filter:
+            integration: "zcsmower"
+          entity:
+            domain: "device_tracker"
+    duration:
+      required: true
+      example: 30
+      default: 60
+      selector:
+        number:
+          min: 1
+          max: 10079
+          step: 1
+          mode: slider
+          unit_of_measurement: minutes
+
+charge_until:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          multiple: true
+          filter:
+            integration: "zcsmower"
+          entity:
+            domain: "device_tracker"
+    hours:
+      required: true
+      example: 12
+      default: 12
+      selector:
+        number:
+          min: 0
+          max: 23
+          step: 1
+          mode: slider
+    minutes:
+      required: true
+      example: 30
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 59
+          step: 1
+          mode: slider
+    weekday:
+      required: true
+      example: "1"
+      default: "0"
+      selector:
+        select:
+          translation_key: "weekday"
+          options:
+            - "1"
+            - "2"
+            - "3"
+            - "4"
+            - "5"
+            - "6"
+            - "7"
+
+trace_position:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          multiple: true
+          filter:
+            integration: "zcsmower"
+          entity:
+            domain: "device_tracker"
+
+change_operator:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          multiple: true
+          filter:
+            integration: "zcsmower"
+          entity:
+            domain: "device_tracker"
+
+keep_out:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          multiple: true
+          filter:
+            integration: "zcsmower"
+          entity:
+            domain: "device_tracker"
+    location:
+      required: true
+      example: 1
+      default: 1
+      selector:
+        location:
+          radius: true
+    hours:
+      example: 12
+      default: 12
+      selector:
+        number:
+          min: 0
+          max: 23
+          step: 1
+          mode: slider
+    minutes:
+      example: 30
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 59
+          step: 1
+          mode: slider
+    index:
+      example: 1
+      default: 1
+      selector:
+        number:
+          mode: box
+
+custom_command:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          multiple: true
+          filter:
+            integration: "zcsmower"
+          entity:
+            domain: "device_tracker"
+    command:
+      required: true
+      example: "set_profile"
+      selector:
+        text:
+    params:
+      required: false
+      example: "profile: 3"
+      selector:
+        object:

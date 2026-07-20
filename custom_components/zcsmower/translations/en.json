@@ -1,0 +1,903 @@
+{
+  "config": {
+    "error": {
+      "auth_failed": "Authorization failed.",
+      "communication_failed": "Action could not be executed.",
+      "connection_failed": "Unable to connect to the server.",
+      "path_invalid": "The specified path to the file is invalid: absolute path is needed.",
+      "coordinates_invalid": "The GPS coordinates provided are not valid: latitude and longitude separated by commas is needed.",
+      "imei_invalid": "The IMEI provided is not valid. It must start with \"35\" and is 15 digits long.",
+      "mower_invalid": "The lawn mower could not be found or another error has occurred. Please check the log files.",
+      "mower_too_many_clients": "There are too many remote clients linked to the lawn mower. Open the mobile app on your device, go to \"General settings\" and then \"Client list\". Remove a remote client there.",
+      "unknown": "Unexpected error"
+    },
+    "step": {
+      "user": {
+        "title": "Set up garage",
+        "description": "Enter your garage name here. You can choose this freely. Also specify whether you want to activate position tracking and map display. You can also change these settings later. For more information go to [ZCS Mower on GitHub]({doc_url_start}).",
+        "data": {
+          "name": "Garage Name",
+          "trace_position_enable": "Enable position tracing?",
+          "map_enable": "Enable map?"
+        }
+      },
+      "map": {
+        "title": "Configure map",
+        "description": "The best way is to create a new map on [Google My Maps]({google_map_url}), take a snapshot of the desired area and mark and export the corner points. Pay attention to the correct order of latitude and longitude. For more information go to [ZCS Mower on GitHub]({doc_url_map}).",
+        "data": {
+          "map_image_path": "Path to the map image",
+          "map_marker_path": "Path to the mower location image",
+          "map_gps_top_left": "GPS coordinates of the top left image corner (latitude, longitude)",
+          "map_gps_bottom_right": "GPS coordinates of the bottom right image corner (latitude, longitude)",
+          "map_rotation": "Rotation in degrees, the image is rotated from true north",
+          "map_history_enable": "Should the location history be shown on the map?",
+          "map_points": "What is the maximum number of location points to be shown on the map?",
+          "map_draw_lines": "Should lines be drawn between the location points?"
+        }
+      },
+      "mower": {
+        "title": "Add lawn mower",
+        "description": "Add a lawn mower. You are free to choose the name. For additional information go to [ZCS Mower on GitHub]({doc_url_add_lawn_mowers}).",
+        "data": {
+          "imei": "IMEI of lawn mower",
+          "name": "Name of lawn mower",
+          "add_another": "Add another lawn mower?"
+        }
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "auth_failed": "Authorization failed.",
+      "communication_failed": "Action could not be executed.",
+      "connection_failed": "Unable to connect to the server.",
+      "standby_time_invalid": "The start and end of the standby time cannot be the same.",
+      "update_interval_working_invalid": "The update interval for working cannot be greater than that for standby.",
+      "update_interval_standby_invalid": "The update interval for standby cannot be greater than that for idling.",
+      "imei_exists": "A lawn mower with this IMEI already exists.",
+      "name_exists": "A lawn mower with this name already exists.",
+      "imei_invalid": "The IMEI provided is not valid. It must start with \"35\" and is 15 digits long.",
+      "mower_invalid": "The lawn mower could not be found or another error has occurred. Please check the log files.",
+      "mower_too_many_clients": "There are too many remote clients linked to the lawn mower. Open the mobile app on your device, go to \"General settings\" and then \"Client list\". Remove a remote client there.",
+      "imei_not_exists": "A lawn mower with this IMEI does not exists.",
+      "delete_not_confirmed": "Deletion of lawn mower was not confirmed.",
+      "last_mower": "Last lawn mower cannot be deleted.",
+      "path_invalid": "The specified path to the file is invalid: absolute path is needed.",
+      "coordinates_invalid": "The GPS coordinates provided are not valid: latitude and longitude separated by commas is needed.",
+      "unknown": "Unexpected error"
+    },
+    "step": {
+      "init": {
+        "title": "Manage lawn mowers",
+        "description": "Manage your lawn mower(s) and settings.",
+        "menu_options": {
+          "add": "Add Lawn Mower",
+          "change": "Change Lawn Mower",
+          "delete": "Remove Lawn Mower",
+          "map": "Map Settings",
+          "settings": "General Settings"
+        }
+      },
+      "add": {
+        "title": "Add lawn mower",
+        "description": "Add another lawn mower. You are free to choose the name. For additional information go to [ZCS Mower on GitHub]({doc_url_add_lawn_mowers}).",
+        "data": {
+          "imei": "IMEI of lawn mower",
+          "name": "Name of lawn mower"
+        }
+      },
+      "change": {
+        "title": "Change lawn mower",
+        "description": "Change a lawn mower.",
+        "data": {
+          "imei": "Select lawn mower",
+          "name": "Name of lawn mower"
+        }
+      },
+      "delete": {
+        "title": "Delete lawn mower",
+        "description": "Delete a lawn mower.",
+        "data": {
+          "imei": "Select lawn mower",
+          "confirm": "Confirm deletion"
+        }
+      },
+      "map": {
+        "title": "Configure map",
+        "description": "The best way is to create a new map on [Google My Maps]({google_map_url}), take a snapshot of the desired area and mark and export the corner points. Pay attention to the correct order of latitude and longitude. For more information go to [ZCS Mower on GitHub]({doc_url_map}).",
+        "data": {
+          "map_enable": "Enable map?",
+          "map_image_path": "Path to the map image",
+          "map_marker_path": "Path to the mower location image",
+          "map_gps_top_left": "GPS coordinates of the top left image corner (latitude, longitude)",
+          "map_gps_bottom_right": "GPS coordinates of the bottom right image corner (latitude, longitude)",
+          "map_rotation": "Rotation in degrees, the image is rotated from true north",
+          "map_history_enable": "Should the location history be shown on the map?",
+          "map_points": "What is the maximum number of location points to be shown on the map?",
+          "map_draw_lines": "Should lines be drawn between the location points?"
+        }
+      },
+      "settings": {
+        "title": "Configure garage",
+        "description": "Make general settings for your garage. For additional information go to [ZCS Mower on GitHub]({doc_url_general_settings}).",
+        "data": {
+          "hibernation_enable": "Are all the lawn mowers in winter storage? (Update interval is reduced and control elements are deactivated)",
+          "standby_time_start": "At what time does the daily standby time start?",
+          "standby_time_stop": "At what time does the daily standby time end?",
+          "update_interval_working": "Every how many seconds should the data be updated when one or more lawn mowers are working?",
+          "update_interval_standby": "Every how many seconds should the data be updated when all lawn mowers are on standby time?",
+          "update_interval_idling": "Every how many seconds should the data be updated when all lawn mowers are idle?",
+          "trace_position_enable": "Enable position tracing?",
+          "wake_up_interval_default": "Default: Every how many seconds should the lawn mower(s) wake up?",
+          "wake_up_interval_infinity": "+Infinity: Every how many seconds should the lawn mower(s) wake up?",
+          "wake_up_timeout": "How long should the integration wait for the lawn mower to wake up before it sends a command?",
+          "generate_client_key": "Re-generate a new client key (only recommended if a connection is no longer possible)."
+        }
+      }
+    }
+  },
+  "selector": {
+    "weekday": {
+      "options": {
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday",
+        "7": "Sunday"
+      }
+    }
+  },
+  "services": {
+    "update_now": {
+      "name": "Updating now",
+      "description": "Fetch data for lawn mower from API now.",
+      "fields": {
+        "device_id": {
+          "name": "Device(s)",
+          "description": "Device(s) on which the command is to be executed."
+        }
+      }
+    },
+    "wake_up": {
+      "name": "Wake up",
+      "description": "Command the lawn mower to wake up and connect to the cloud.",
+      "fields": {
+        "device_id": {
+          "name": "Device(s)",
+          "description": "Device(s) on which the command is to be executed."
+        }
+      }
+    },
+    "set_profile": {
+      "name": "Setting profile",
+      "description": "Configure the profile for auto-mode.",
+      "fields": {
+        "device_id": {
+          "name": "Device(s)",
+          "description": "Device(s) on which the command is to be executed."
+        },
+        "profile": {
+          "name": "Profile",
+          "description": "Select the profile you want to use."
+        }
+      }
+    },
+    "work_now": {
+      "name": "Mowing now",
+      "description": "Command the lawn mower to mow now.",
+      "fields": {
+        "device_id": {
+          "name": "Device(s)",
+          "description": "Device(s) on which the command is to be executed."
+        }
+      }
+    },
+    "work_for": {
+      "name": "Mowing for a certain duration",
+      "description": "Command the lawn mower to mow for a certain duration.",
+      "fields": {
+        "device_id": {
+          "name": "Device(s)",
+          "description": "Device(s) on which the command is to be executed."
+        },
+        "duration": {
+          "name": "Duration",
+          "description": "Duration in which the lawn mower should run, in minutes."
+        },
+        "area": {
+          "name": "Zone",
+          "description": "Zone where the lawn mower should start."
+        }
+      }
+    },
+    "work_until": {
+      "name": "Mowing until a certain time",
+      "description": "Command the lawn mower to mow until a certain time.",
+      "fields": {
+        "device_id": {
+          "name": "Device(s)",
+          "description": "Device(s) on which the command is to be executed."
+        },
+        "hours": {
+          "name": "Hours",
+          "description": "Time until which lawn mower should drive in locale time and 24h format."
+        },
+        "minutes": {
+          "name": "Minutes",
+          "description": "Time until which lawn mower should drive in locale time and 24h format."
+        },
+        "area": {
+          "name": "Zone",
+          "description": "Zone where the lawn mower should start."
+        }
+      }
+    },
+    "border_cut": {
+      "name": "Border cutting",
+      "description": "Command the lawn mower to cut the border.",
+      "fields": {
+        "device_id": {
+          "name": "Device(s)",
+          "description": "Device(s) on which the command is to be executed."
+        }
+      }
+    },
+    "charge_now": {
+      "name": "Charging now",
+      "description": "Command the lawn mower to charge now.",
+      "fields": {
+        "device_id": {
+          "name": "Device(s)",
+          "description": "Device(s) on which the command is to be executed."
+        }
+      }
+    },
+    "charge_for": {
+      "name": "Charging for a certain duration",
+      "description": "Command the lawn mower to charge for a certain duration.",
+      "fields": {
+        "device_id": {
+          "name": "Device(s)",
+          "description": "Device(s) on which the command is to be executed."
+        },
+        "duration": {
+          "name": "Duration",
+          "description": "Duration in which the lawn mower should charge, in minutes."
+        }
+      }
+    },
+    "charge_until": {
+      "name": "Charging until a certain time",
+      "description": "Command the lawn mower to charge until a certain time.",
+      "fields": {
+        "device_id": {
+          "name": "Device(s)",
+          "description": "Device(s) on which the command is to be executed."
+        },
+        "hours": {
+          "name": "Hours",
+          "description": "Time until which lawn mower should charge in locale time and 24h format."
+        },
+        "minutes": {
+          "name": "Minutes",
+          "description": "Time until which lawn mower should charge in locale time and 24h format."
+        },
+        "weekday": {
+          "name": "Day of week",
+          "description": "Numeric representation of the day of the week is 1 (for Monday) through 7 (for Sunday)."
+        }
+      }
+    },
+    "trace_position": {
+      "name": "Tracing position",
+      "description": "Command the lawn mower to report its current position.",
+      "fields": {
+        "device_id": {
+          "name": "Device(s)",
+          "description": "Device(s) on which the command is to be executed."
+        }
+      }
+    },
+    "change_operator": {
+      "name": "Change operator",
+      "description": "Force the lawn mower to change the network operator.",
+      "fields": {
+        "device_id": {
+          "name": "Device(s)",
+          "description": "Device(s) on which the command is to be executed."
+        }
+      }
+    },
+    "keep_out": {
+      "name": "Keep out of a location (no-go area)",
+      "description": "Commands the lawn mower to keep out of a location.",
+      "fields": {
+        "device_id": {
+          "name": "Device(s)",
+          "description": "Device(s) on which the command is to be executed."
+        },
+        "location": {
+          "name": "Location",
+          "description": "Location from which the lawn mower should keep out."
+        },
+        "hours": {
+          "name": "Hours",
+          "description": "Time until which lawn mower should keep out in locale time and 24h format."
+        },
+        "minutes": {
+          "name": "Minutes",
+          "description": "Time until which lawn mower should keep out in locale time and 24h format."
+        },
+        "index": {
+          "name": "Index",
+          "description": "Index is needed when the lawn mower is to keep out of multiple locations at the same time. Different index values per no-go area."
+        }
+      }
+    },
+    "custom_command": {
+      "name": "Custom command",
+      "description": "Send a custom command to the lawn mower, like a command for a new feature, which is not implemented yet by this integration.",
+      "fields": {
+        "device_id": {
+          "name": "Device(s)",
+          "description": "Device(s) on which the command is to be executed."
+        },
+        "command": {
+          "name": "Command",
+          "description": "Name of the command."
+        },
+        "params": {
+          "name": "Parameters",
+          "description": "Input arbitrary data in YAML form."
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "error": {
+        "name": "Error",
+        "state_attributes": {
+          "imei": {
+            "name": "IMEI"
+          },
+          "reason": {
+            "name": "Reason"
+          }
+        }
+      },
+      "connection": {
+        "name": "Connection State",
+        "state_attributes": {
+          "imei": {
+            "name": "IMEI"
+          },
+          "last_communication": {
+            "name": "Last communication"
+          },
+          "last_seen": {
+            "name": "Last seen"
+          },
+          "last_pull": {
+            "name": "Last pull"
+          },
+          "next_pull": {
+            "name": "Next pull"
+          },
+          "reason": {
+            "name": "Reason"
+          }
+        }
+      },
+      "standby": {
+        "name": "Standby state",
+        "state_attributes": {
+          "standby_time_start": {
+            "name": "Standby time starts"
+          },
+          "standby_time_stop": {
+            "name": "Standby time stops"
+          }
+        }
+      }
+    },
+    "button": {
+      "update_now": {
+        "name": "Update now",
+        "state_attributes": {
+          "imei": {
+            "name": "IMEI"
+          }
+        }
+      },
+      "wake_up": {
+        "name": "Wake up",
+        "state_attributes": {
+          "imei": {
+            "name": "IMEI"
+          }
+        }
+      },
+      "work_now": {
+        "name": "Work now",
+        "state_attributes": {
+          "imei": {
+            "name": "IMEI"
+          }
+        }
+      },
+      "charge_now": {
+        "name": "Charge now",
+        "state_attributes": {
+          "imei": {
+            "name": "IMEI"
+          }
+        }
+      },
+      "border_cut": {
+        "name": "Border cut",
+        "state_attributes": {
+          "imei": {
+            "name": "IMEI"
+          }
+        }
+      },
+      "trace_position": {
+        "name": "Trace position",
+        "state_attributes": {
+          "imei": {
+            "name": "IMEI"
+          }
+        }
+      },
+      "change_operator": {
+        "name": "Change operator",
+        "state_attributes": {
+          "imei": {
+            "name": "IMEI"
+          }
+        }
+      }
+    },
+    "device_tracker": {
+      "location": {
+        "state_attributes": {
+          "imei": {
+            "name": "IMEI"
+          }
+        }
+      }
+    },
+    "image": {
+      "map": {
+        "name": "Map",
+        "state_attributes": {
+          "imei": {
+            "name": "IMEI"
+          },
+          "calibration_points": {
+            "name": "Calibration points"
+          }
+        }
+      }
+    },
+    "lawn_mower": {
+      "mower": {
+        "state_attributes": {
+          "imei": {
+            "name": "IMEI"
+          }
+        }
+      }
+    },
+    "number": {
+      "work_for": {
+        "name": "Work for",
+        "state_attributes": {
+          "imei": {
+            "name": "IMEI"
+          }
+        }
+      },
+      "charge_for": {
+        "name": "Charge for",
+        "state_attributes": {
+          "imei": {
+            "name": "IMEI"
+          }
+        }
+      },
+      "update_interval_working": {
+        "name": "Update interval Working time",
+        "state_attributes": {
+          "imei": {
+            "name": "IMEI"
+          }
+        }
+      },
+      "update_interval_standby": {
+        "name": "Update interval Standby time",
+        "state_attributes": {
+          "imei": {
+            "name": "IMEI"
+          }
+        }
+      },
+      "update_interval_idling": {
+        "name": "Update interval Idle time",
+        "state_attributes": {
+          "imei": {
+            "name": "IMEI"
+          }
+        }
+      }
+    },
+    "sensor": {
+      "connect_expiration": {
+        "name": "Connect expiration date",
+        "state_attributes": {
+          "infinity_state": {
+            "name": "+Infinity State",
+            "state": {
+              "true": "Enabled",
+              "false": "Disabled"
+            }
+          },
+          "infinity_expiration": {
+            "name": "+Infinity expiration date"
+          },
+          "imei": {
+            "name": "IMEI"
+          }
+        }
+      },
+      "state": {
+        "name": "State",
+        "state": {
+          "unknown": "Unknown",
+          "charge": "Charge",
+          "work": "Work",
+          "pause": "Pause",
+          "fail": "Error",
+          "nosignal": "No signal",
+          "gotostation": "Go to station",
+          "gotoarea": "Go to area",
+          "bordercut": "Border cut",
+          "expired": "Expired",
+          "renewed": "Renewed",
+          "work_standby": "Work standby",
+          "hot_temperature": "Hot temperature",
+          "mapping_started": "Mapping started",
+          "mapping_ended": "Mapping ended",
+          "migrated": "Migrated"
+        },
+        "state_attributes": {
+          "imei": {
+            "name": "IMEI"
+          }
+        }
+      },
+      "error": {
+        "name": "Error",
+        "state": {
+          "unknown": "Unknown",
+          "bus_error": "BUS ERROR",
+          "sync_error": "SYNC ERROR",
+          "blackout_sig02": "Blackout - SIG02",
+          "blackout_sig03": "Blackout - SIG03",
+          "blackout_sig04": "Blackout - SIG04",
+          "blocked": "Blocked",
+          "bump_error": "Bump error",
+          "bump_error_bump03": "Bump error - BUMP03",
+          "grass_too_high": "Grass too high",
+          "out_of_border_block": "Out of border - BLOCK",
+          "out_of_border_bord01": "Out of border - BORD01",
+          "out_of_border_bord02": "Out of border - BORD02",
+          "out_of_border_bord03": "Out of border - BORD03",
+          "out_of_border_bump01": "Out of border - BUMP01",
+          "out_of_border_bump02": "Out of border - BUMP02",
+          "out_of_border_out01": "Out of border - OUT01",
+          "out_of_border_out02": "Out of border - OUT02",
+          "out_of_border_start": "Out of border - START",
+          "out_of_border_sync01": "Out of border - SYNC01",
+          "out_of_border_sync02": "Out of border - SYNC02",
+          "tilt": "Tilt",
+          "blade_error": "Blade error",
+          "blade_error_tmotor": "Blade error - TMOTOR",
+          "blade_error_tdrv": "Blade error - TDRV",
+          "blade_error_curr": "Blade error - CURR",
+          "blade_error_rpm": "Blade error - RPM",
+          "blade_error_wdog": "Blade error - WDOG",
+          "blade_error_fail": "Blade error - FAIL",
+          "wheel_error_left": "LF wheel error",
+          "wheel_error_left_tmotor": "LF wheel error - TMOTOR",
+          "wheel_error_left_tdrv": "LF wheel error - TDRV",
+          "wheel_error_left_curr": "LF wheel error - CURR",
+          "wheel_error_left_rpm": "LF wheel error - RPM",
+          "wheel_error_left_wdog": "LF wheel error - WDOG",
+          "wheel_error_left_fail": "LF wheel error - FAIL",
+          "wheel_error_right": "RG wheel error",
+          "wheel_error_right_tmotor": "RG wheel error - TMOTOR",
+          "wheel_error_right_tdrv": "RG wheel error - TDRV",
+          "wheel_error_right_curr": "RG wheel error - CURR",
+          "wheel_error_right_rpm": "RG wheel error - RPM",
+          "wheel_error_right_wdog": "RG wheel error - WDOG",
+          "wheel_error_right_fail": "RG wheel error - FAIL",
+          "out_of_border_out03": "Out of border - OUT03",
+          "rollover": "Rollover",
+          "lift": "Lift",
+          "lift_lift2": "Lift - LIFT2",
+          "lift_lift3": "Lift - LIFT3",
+          "lift_lift4": "Lift - LIFT4",
+          "tilt_tilt3": "Tilt - TILT3",
+          "tilt_tilt4": "Tilt - TILT4",
+          "out_of_border_bump04": "Out of border - BUMP04",
+          "low_battery": "Low battery",
+          "power_off": "Power off",
+          "no_signal": "No signal",
+          "out_of_border_out04": "Out of border - OUT04",
+          "signal_returned": "Signal Returned",
+          "autocheck_start": "Autocheck start",
+          "autocheck_stop": "Autocheck stop",
+          "out_of_border_nosig": "Out of border - NOSIG",
+          "no_signal_c1": "No signal C1",
+          "no_signal_c2": "No signal C2",
+          "no_signal_c2_1": "No signal C2",
+          "no_signal_c1_1": "No signal C1",
+          "out_of_border_bord04": "Out of border - BORD04",
+          "emergency_stop": "EMERGENCY STOP",
+          "display_required": "Display R0 Required Rxxxx",
+          "receiver_required": "Receiver R0 Required Rxxxx",
+          "gsm_required": "GSM R0 Required Rxxxx",
+          "driver_l_required": "Driver L R0 Required Rxxxx",
+          "driver_r_required": "Driver R R0 Required Rxxxx",
+          "driver_b_required": "Driver B R0 Required Rxxxx",
+          "magnet_required": "Magnet R0 Required Rxxxx",
+          "blocked_block1": "Blocked - BLOCK1",
+          "blocked_block3": "Blocked - BLOCK3",
+          "compass_required": "Compass R0 Required Rxxxx",
+          "bump_error_front": "Bump error - FRONT",
+          "bump_error_back": "Bump error - BACK",
+          "date_error": "DATE ERROR",
+          "program_error": "PROGRAM ERROR",
+          "version_error": "VERSION ERROR",
+          "safety_lift_sensor_damaged_or_dirty": "Safety lift sensor damaged or dirty",
+          "recharge_error": "RECHARGE ERROR",
+          "autocheck_gyro": "Autocheck GYRO",
+          "autocheck_fail": "Autocheck FAIL",
+          "autocheck_rain": "Autocheck RAIN",
+          "autocheck_coils": "Autocheck COILS",
+          "autocheck_motion": "Autocheck MOTION",
+          "autocheck_wheels_blocked": "Autocheck WHEELS BLOCKED",
+          "autocheck_wheels_error": "Autocheck WHEELS ERROR",
+          "autocheck_recharge": "Autocheck RECHARGE",
+          "autocheck_button_wrong": "Autocheck BUTTON WRONG",
+          "autocheck_button_not_released": "Autocheck BUTTON NOT RELEASED",
+          "autocheck_not_lifted": "Autocheck NOT LIFTED",
+          "display_error": "DISPLAY ERROR",
+          "blade_error_blocked": "Blade error - BLOCKED",
+          "wheel_error_left_blocked": "LF wheel error - BLOCKED",
+          "wheel_error_right_blocked": "RG wheel error - BLOCKED",
+          "blade_error_left": "Left Blade error",
+          "blade_error_left_tmotor": "Left Blade error - TMOTOR",
+          "blade_error_left_tdrv": "Left Blade error - TDRV",
+          "blade_error_left_curr": "Left Blade error - CURR",
+          "blade_error_left_rpm": "Left Blade error - RPM",
+          "blade_error_left_wdog": "Left Blade error - WDOG",
+          "blade_error_left_fail": "Left Blade error - FAIL",
+          "blade_error_left_blocked": "Left Blade error - BLOCKED",
+          "blade_error_right": "Right Blade error",
+          "blade_error_right_tmotor": "Right Blade error - TMOTOR",
+          "blade_error_right_tdrv": "Right Blade error - TDRV",
+          "blade_error_right_curr": "Right Blade error - CURR",
+          "blade_error_right_rpm": "Right Blade error - RPM",
+          "blade_error_right_wdog": "Right Blade error - WDOG",
+          "blade_error_right_fail": "Right Blade error - FAIL",
+          "blade_error_right_blocked": "Right Blade error - BLOCKED",
+          "wheel_error_fl": "Wheel error - FL",
+          "wheel_error_fl_tmotor": "Wheel error - FL-TMOTOR",
+          "wheel_error_fl_tdrv": "Wheel error - FL-TDRV",
+          "wheel_error_fl_curr": "Wheel error - FL-CURR",
+          "wheel_error_fl_rpm": "Wheel error - FL-RPM",
+          "wheel_error_fl_wdog": "Wheel error - FL-WDOG",
+          "wheel_error_fl_fail": "Wheel error - FL-FAIL",
+          "wheel_error_fl_blocked": "Wheel error - FL-BLOCKED",
+          "wheel_error_fr": "Wheel error - FR",
+          "wheel_error_fr_tmotor": "Wheel error - FR-TMOTOR",
+          "wheel_error_fr_tdrv": "Wheel error - FR-TDRV",
+          "wheel_error_fr_curr": "Wheel error - FR-CURR",
+          "wheel_error_fr_rpm": "Wheel error - FR-RPM",
+          "wheel_error_fr_wdog": "Wheel error - FR-WDOG",
+          "wheel_error_fr_fail": "Wheel error - FR-FAIL",
+          "wheel_error_fr_blocked": "Wheel error - FR-BLOCKED",
+          "steer_error_fl": "Steer Error - FL",
+          "steer_error_fl_tmotor": "Steer Error - FL-TMOTOR",
+          "steer_error_fl_tdrv": "Steer Error - FL-TDRV",
+          "steer_error_fl_curr": "Steer Error - FL-CURR",
+          "steer_error_fl_rpm": "Steer Error - FL-RPM",
+          "steer_error_fl_wdog": "Steer Error - FL-WDOG",
+          "steer_error_fl_fail": "Steer Error - FL-FAIL",
+          "steer_error_fl_blocked": "Steer Error - FL-BLOCKED",
+          "steer_error_fr": "Steer Error - FR",
+          "steer_error_fr_tmotor": "Steer Error - FR-TMOTOR",
+          "steer_error_fr_tdrv": "Steer Error - FR-TDRV",
+          "steer_error_fr_curr": "Steer Error - FR-CURR",
+          "steer_error_fr_rpm": "Steer Error - FR-RPM",
+          "steer_error_fr_wdog": "Steer Error - FR-WDOG",
+          "steer_error_fr_fail": "Steer Error - FR-FAIL",
+          "steer_error_fr_blocked": "Steer Error - FR-BLOCKED",
+          "steer_error_bl": "Steer Error - BL",
+          "steer_error_bl_tmotor": "Steer Error - BL-TMOTOR",
+          "steer_error_bl_tdrv": "Steer Error - BL-TDRV",
+          "steer_error_bl_curr": "Steer Error - BL-CURR",
+          "steer_error_bl_rpm": "Steer Error - BL-RPM",
+          "steer_error_bl_wdog": "Steer Error - BL-WDOG",
+          "steer_error_bl_fail": "Steer Error - BL-FAIL",
+          "steer_error_bl_blocked": "Steer Error - BL-BLOCKED",
+          "steer_error_br": "Steer Error - BR",
+          "steer_error_br_tmotor": "Steer Error - BR-TMOTOR",
+          "steer_error_br_tdrv": "Steer Error - BR-TDRV",
+          "steer_error_br_curr": "Steer Error - BR-CURR",
+          "steer_error_br_rpm": "Steer Error - BR-RPM",
+          "steer_error_br_wdog": "Steer Error - BR-WDOG",
+          "steer_error_br_fail": "Steer Error - BR-FAIL",
+          "steer_error_br_blocked": "Steer Error - BR-BLOCKED",
+          "radar_error": "Radar error",
+          "front_tilt_error": "Front Tilt Error",
+          "hub_board_error": "HUB Board Error",
+          "bump_error_front_l_cent": "Bump Error FRONT - L - CENT",
+          "bump_error_front_cent_cent": "Bump Error FRONT - CENT - CENT",
+          "bump_error_front_r_cent": "Bump Error FRONT - R - CENT",
+          "bump_error_rear_l": "Bump Error REAR - L",
+          "bump_error_rear_cent": "Bump Error REAR - CENT",
+          "bump_error_rear_r": "Bump Error REAR - R",
+          "bump_error_front_cent_l": "Bump Error FRONT - CENT - L",
+          "bump_error_front_cent_r": "Bump Error FRONT - CENT - R",
+          "chasm_error_front_l": "Chasm Error FRONT - L",
+          "chasm_error_front_r": "Chasm Error FRONT - R",
+          "bump_error_front_l_l": "Bump Error FRONT - L - L",
+          "bump_error_front_l_r": "Bump Error FRONT - L - R",
+          "bump_error_front_r_l": "Bump Error FRONT - R - L",
+          "bump_error_front_r_r": "Bump Error FRONT - R - R",
+          "bump_error_l_front": "Bump Error L - FRONT",
+          "bump_error_l_rear": "Bump Error L - REAR",
+          "bump_error_r_front": "Bump Error R - FRONT",
+          "bump_error_r_rear": "Bump Error R - REAR",
+          "grass_radar_error_l": "Grass Radar Error L",
+          "grass_radar_error_r": "Grass Radar Error R",
+          "grass_radar_error_cent": "Grass Radar Error CENT",
+          "bump_error_l": "Bump Error L",
+          "bump_error_r": "Bump Error R",
+          "board_error": "BOARD ERROR",
+          "config_error": "CONFIG ERROR",
+          "test_b_required": "TEST B REQUIRED",
+          "test_c_required": "TEST C REQUIRED",
+          "trapped": "TRAPPED",
+          "sd_card_error": "SD CARD ERROR",
+          "tilt_communication_error": "TILT communication error",
+          "rtc_error": "RTC ERROR",
+          "can_0_error": "CAN 0 ERROR",
+          "can_1_error": "CAN 1 ERROR",
+          "blade_motor_communication_error": "BLADE MOTOR communication error",
+          "wheel_left_communication_error": "LEFT WHEEL communication error",
+          "wheel_right_communication_error": "RIGHT WHEEL communication error",
+          "receiver_left_communication_error": "LEFT RECEIVER communication error",
+          "connect_error": "CONNECT error",
+          "blade_height_error": "BLADE HEIGHT ERROR",
+          "bluetooth_error": "BLUETOOTH ERROR",
+          "geofence_error": "GEOFENCE ERROR",
+          "gps_error": "GPS ERROR",
+          "connect_error_1": "Connect error",
+          "over_current_error": "OVER CURRENT ERROR",
+          "over_voltage_error": "OVER VOLTAGE ERROR",
+          "eeprom_error": "EEPROM error",
+          "tilt_left_disconnect": "TILT left disconnect",
+          "tilt_right_disconnect": "TILT right disconnect",
+          "receiver_left_disconnect": "Left receiver disconnect",
+          "receiver_right_disconnect": "Right receiver disconnect",
+          "inductive_module_error": "Inductive module error",
+          "inductive_module_error_1": "Inductive module error",
+          "inductive_module_error_2": "Inductive module error",
+          "connect_module_error": "Connect module error",
+          "middle_blade_driver_disconnected": "Middle blade driver disconnected",
+          "blade_left_driver_disconnected": "Left blade driver disconnected",
+          "blade_right_driver_disconnected": "Right blade driver disconnected",
+          "display_communication_error": "Display communication error",
+          "low_battery_while_charging": "LOW BATTERY WHILE CHARGING",
+          "blade_height_left": "Blade Height Left",
+          "blade_height_right": "Blade Height right",
+          "device_error_devicex_require": "Device error \"Device - Rxxxxx Require - Ryyyyy\"",
+          "long_disconnection_middle_blade": "Long disconnection - Middle blade",
+          "long_disconnection_blade_left": "Long disconnection - Left blade",
+          "long_disconnection_blade_right": "Long disconnection - Right blade",
+          "battery_not_detected": "Battery not detected",
+          "zdefender_error": "Zdefender error",
+          "radar_data_save_error": "Radar data save error",
+          "docking_error": "Docking error",
+          "atomizer_module_error": "Atomizer module error",
+          "radar_fl_not_calibrated": "FL Radar - Not Calibrated",
+          "radar_fr_not_calibrated": "FR Radar - Not Calibrated",
+          "radar_bl_not_calibrated": "BL Radar - Not Calibrated",
+          "radar_br_not_calibrated": "BR Radar - Not Calibrated",
+          "radar_fm_not_calibrated": "FM Radar - Not Calibrated",
+          "front_tilt_board_error": "Front Tilt Board Error",
+          "ultrasound_hub_board_error": "Ultrasound Hub board error",
+          "automapping_phase_failed": "Automapping phase failed",
+          "gps_return_not_set": "GPS return not set",
+          "no_map_in_the_robot": "No map in the robot",
+          "map_preparation_failed": "Map preparation failed",
+          "error_updating_gps_map": "Error updating GPS map",
+          "rtk_file_path_error": "RTK file path error",
+          "stop_button_pressed": "STOP button pressed",
+          "start_bus_error": "Start Bus error",
+          "no_signal_error": "No signal error",
+          "no_gps_signal_error": "No GPS signal error",
+          "invalid_voucher": "Invalid Voucher",
+          "used_voucher": "Used Voucher",
+          "voucher_zone_error": "Voucher Zone Error",
+          "server_connection_error": "Server connection error",
+          "mismatch_wheel_motors": "MISMATCH WHEEL MOTORS",
+          "mismatch_back_coils": "MISMATCH BACK COILS",
+          "mismatch_left_coils": "MISMATCH LEFT COILS",
+          "mismatch_right_coils": "MISMATCH RIGHT COILS",
+          "mismatch_front_coils": "MISMATCH FRONT COILS",
+          "wrong_measurament_back_left_coil": "WRONG MEASURAMENT RX BACK (LEFT COIL)",
+          "wrong_measurament_back_right_coil": "WRONG MEASURAMENT RX BACK (RIGHT COIL)",
+          "wrong_measurament_left_left_coil": "WRONG MEASURAMENT RX LEFT (LEFT COIL)",
+          "wrong_measurament_left_right_coil": "WRONG MEASURAMENT RX LEFT (RIGHT COIL)",
+          "wrong_measurament_right_left_coil": "WRONG MEASURAMENT RX RIGHT (LEFT COIL)",
+          "wrong_measurament_right_right_coil": "WRONG MEASURAMENT RX RIGHT (RIGHT COIL)",
+          "wrong_measurament_front_left_coil": "WRONG MEASURAMENT RX FRONT (LEFT COIL)",
+          "wrong_measurament_front_right_coil": "WRONG MEASURAMENT RX FRONT (RIGHT COIL)",
+          "mismatch_bump": "MISMATCH BUMP",
+          "bump_sensor_blocked": "BUMP SENSOR BLOCKED",
+          "lift_error": "LIFT ERROR",
+          "mismatch_lift_sensors": "MISMATCH LIFT SENSORS",
+          "rain_error": "RAIN ERROR",
+          "stop_button_blocked": "STOP BUTTON BLOCKED",
+          "no_signal_back_receiver": "NO SIGNAL BACK RECEIVER",
+          "no_signal_receiver_left": "NO SIGNAL LEFT RECEIVER",
+          "no_signal_receiver_right": "NO SIGNAL RIGHT RECEIVER",
+          "no_signal_front_receiver": "NO SIGNAL FRONT RECEIVER",
+          "wrong_or_missing_action": "WRONG OR MISSING ACTION",
+          "trapped_no_grass": "TRAPPED (No Grass)",
+          "trapped_drop_off": "TRAPPED (Drop-off)",
+          "trapped_bump": "TRAPPED (Bump)",
+          "trapped_tilt": "TRAPPED (Tilt)",
+          "unexpected_shutdown_error": "Unexpected shutdown error",
+          "unexpected_shutdown_resume_from_failure": "UNEXPECTED SHUTDOWN RESUME FROM FAILURE",
+          "unexpected_shutdown_autocheck": "UNEXPECTED SHUTDOWN AUTOCHECK",
+          "unexpected_shutdown_charge": "UNEXPECTED SHUTDOWN CHARGE",
+          "unexpected_shutdown_work": "UNEXPECTED SHUTDOWN WORK",
+          "unexpected_shutdown_work_pause": "UNEXPECTED SHUTDOWN WORK PAUSE",
+          "unexpected_shutdown_done": "UNEXPECTED SHUTDOWN DONE",
+          "invalid_connection": "Invalid Connection",
+          "wrong_server_authentication": "Wrong Server Authentication",
+          "server_disconnection": "Server Disconnection"
+        }
+      }
+    },
+    "switch": {
+      "trace_position": {
+        "name": "Tracing position"
+      },
+      "hibernation": {
+        "name": "Winter break"
+      }
+    },
+    "vacuum": {
+      "mower": {
+        "state": {
+          "cleaning": "Mowing"
+        },
+        "state_attributes": {
+          "imei": {
+            "name": "IMEI"
+          }
+        }
+      }
+    }
+  }
+}
