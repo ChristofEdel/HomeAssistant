@@ -1,0 +1,102 @@
+set_dhw_tempreture:
+  name: Set DHW Temperature
+  description: Set the temperature of dhw for a specific level
+  target:
+    entity:
+      integration: bosch_homecom
+  fields:
+    level:
+      name: level
+      description: The tempreture level to set temperature for
+      required: true
+      default: "eco"
+      example: "high"
+      selector:
+        select:
+          options:
+            - "eco"
+            - "high"
+            - "low"
+            - "manual"
+    temperature:
+      name: temperature
+      description: The tempreture to set to level of dhw circuit
+      required: true
+      example: 44.0
+      selector:
+        number:
+          min: 30
+          max: 53
+          step: 0.1
+          unit_of_measurement: "°C"
+set_dhw_extrahot_water:
+  name: Set DHW extra hot water
+  description: Start or stop the extra hot water mode for dhw circuit
+  target:
+    entity:
+      integration: bosch_homecom
+  fields:
+    mode:
+      name: mode
+      description: Start or stop the extra hot water mode for dhw circuit
+      required: true
+      default: "start"
+      example: "stop"
+      selector:
+        select:
+          options:
+            - "start"
+            - "stop"
+    duration:
+      name: duration
+      description: The duration in minutes for the extra hot water mode
+      required: false
+      default: 60
+      example: 60
+      selector:
+        number:
+          min: 60
+          max: 2880
+          unit_of_measurement: "minutes"
+get_custom_path_service:
+  name: Fetch Custom Path Service
+  description: Fetch the custom path service for the Bosch HomeCom integration
+  fields:
+    device_id:
+      name: device_id
+      description: The device id to fetch data from
+      required: true
+      default: "100000000"
+      example: "100000000"
+    path:
+      name: path
+      description: Custom path to fetch data from
+      required: true
+      default: "/resource/notifications"
+      example: "/resource/notifications"
+
+get_recordings_service:
+  name: Fetch Recording Endpoints
+  description: >-
+    Fetch /recordings/* endpoints via bulk POST (the single-endpoint universal
+    GET returns empty for /recordings/*, that tier is only exposed via POST
+    /pointt-api/api/v1/bulk). Use this to fetch daily energy/recording data
+    like emon totals and ventilation heat recovery.
+  fields:
+    device_id:
+      name: device_id
+      description: The device id to fetch data from
+      required: true
+      default: "100000000"
+      example: "100000000"
+    paths:
+      name: paths
+      description: >-
+        List of /recordings paths. Each path may include a ?interval=YYYY-MM-DD
+        query string. Max 30 per call (auto-chunked).
+      required: true
+      example: |
+        - /recordings/heatSources/emon/ventilation/heatRecovered?interval=2026-07-06
+        - /recordings/heatSources/emon/total/outputProduced?interval=2026-07-06
+      selector:
+        object:

@@ -1,0 +1,149 @@
+"""Bosch HomeCom Custom Component Fan."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from homeassistant import config_entries
+from homeassistant.components.fan import FanEntity, FanEntityFeature
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util.percentage import ordered_list_item_to_percentage
+
+from .coordinator import BoschComModuleCoordinatorK40
+
+PARALLEL_UPDATES = 1
+ORDERED_NAMED_FAN_SPEEDS = ["min", "red", "nom", "max", "dem"]
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: config_entries.ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up the BoschCom devices."""
+    coordinators = config_entry.runtime_data
+    entities: list[FanEntity] = []
+
+    for coordinator in coordinators:
+        device_type = coordinator.data.device.get("deviceType")
+        if device_type in ("k40", "k30", "icom"):
+            # DHW circuits
+            for ref in coordinator.data.ventilation:
+                zone_id = ref["id"].split("/")[-1]
+                entities.append(BoschComDhwFan(coordinator=coordinator, field=zone_id))
+
+    if entities:
+        async_add_entities(entities)
+
+
+class BoschComDhwFan(CoordinatorEntity, FanEntity):
+    """Representation of a BoschCom fan entity."""
+
+    def __init__(
+        self,
+        coordinator: BoschComModuleCoordinatorK40,
+        field: str,
+    ) -> None:
+        """Initialize fan entity."""
+        super().__init__(coordinator)
+        self.field = field
+        self._attr_translation_key = "ventilation"
+        self._attr_translation_placeholders = {"zone": field}
+        self._attr_device_info = coordinator.device_info
+        self._attr_unique_id = f"{coordinator.unique_id}-{field}-fan"
+        self._attr_should_poll = False
+        self._attr_has_entity_name = True
+        self._attr_suggested_object_id = field + "_fan"
+        self._attr_supported_features = (
+            FanEntityFeature.PRESET_MODE
+            | FanEntityFeature.TURN_OFF
+            | FanEntityFeature.TURN_ON
+        )
+
+        self._operationMode: str | None = None
+        self._preset_modes: list[str] | None = None
+        self._exhaustFanLevel: str | None = None
+
+        self.set_attr()
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self.set_attr()
+        self.async_write_ha_state()
+
+    @property
+    def preset_modes(self) -> list[str] | None:
+        """Return a list of available preset modes."""
+        return self._preset_modes
+
+    @property
+    def percentage(self) -> int | None:
+        """Return the current speed percentage."""
+        return ordered_list_item_to_percentage(
+            ORDERED_NAMED_FAN_SPEEDS, self._exhaustFanLevel
+        )
+
+    @property
+    def speed_count(self) -> int:
+        """Return the number of speeds the fan supports."""
+        return len(ORDERED_NAMED_FAN_SPEEDS)
+
+    async def async_turn_on(
+        self,
+        preset_mode: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Turn on."""
+        if preset_mode is None:
+            preset_mode = self._operationMode
+        await self.coordinator.bhc.async_set_ventilation_mode(
+            self.coordinator.unique_id, self.field, preset_mode
+        )
+
+        await self.coordinator.async_request_refresh()
+
+    async def async_set_preset_mode(self, preset_mode: str | None = None) -> None:
+        """Set new preset mode."""
+        await self.coordinator.bhc.async_set_ventilation_mode(
+            self.coordinator.unique_id, self.field, preset_mode
+        )
+
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self) -> None:
+        """Turn off."""
+        await self.coordinator.bhc.async_set_ventilation_mode(
+            self.coordinator.unique_id, self.field, "off"
+        )
+
+        await self.coordinator.async_request_refresh()
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if fan is on."""
+        return self._exhaustFanLevel != "off"
+
+    @property
+    def preset_mode(self) -> str | None:
+        """Return the current preset mode."""
+        return self._operationMode
+
+    def set_attr(self) -> None:
+        """Populate attributes with data from the coordinator."""
+
+        def safe_get(data, key, default="unknown"):
+            """Return unknown if null."""
+            if data is None:
+                return default
+            value = data.get(key)
+            return value if value is not None else default
+
+        for entry in self.coordinator.data.ventilation:
+            if entry.get("id") == "/ventilation/" + self.field:
+                op_mode = entry.get("operationMode")
+                self._operationMode = safe_get(op_mode, "value")
+                self._preset_modes = safe_get(op_mode, "allowedValues")
+                self._exhaustFanLevel = safe_get(entry.get("exhaustFanLevel"), "value")
