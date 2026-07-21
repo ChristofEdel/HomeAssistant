@@ -840,10 +840,22 @@ class BoschComBaconRacClimate(
     @property
     def swing_mode(self) -> str:
         """Return the swing setting."""
-        reported = self._reported
-        if reported.get("hSwingEnabled") or reported.get("vSwingEnabled"):
+        if self._reported.get("vSwingEnabled"):
             return SWING_ON
         return SWING_OFF
+
+    @property
+    def swing_horizontal_mode(self) -> str:
+        """Return horizontal swing mode."""
+        if self._reported.get("hSwingEnabled"):
+            return SWING_ON
+        return SWING_OFF
+
+    @property
+    def current_temperature(self) -> float | None:
+        """Return the current room temperature."""
+        value = self._reported.get("roomTemperature")
+        return float(value) if isinstance(value, (int, float)) else None
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
@@ -879,7 +891,14 @@ class BoschComBaconRacClimate(
         await self.coordinator.async_request_refresh()
 
     async def async_set_swing_mode(self, swing_mode: str) -> None:
-        """Set new swing mode (drives both horizontal and vertical louvers)."""
+        """Set new vertical swing mode"""
         enabled = swing_mode == SWING_ON
-        await self.coordinator.bhc.async_set_swing(horizontal=enabled, vertical=enabled)
+        await self.coordinator.bhc.async_set_vertical_swing(enabled)
         await self.coordinator.async_request_refresh()
+
+    async def async_set_swing_horizontal_mode(self, swing_mode: str) -> None:
+        """Set new horizontal swing mode"""
+        enabled = swing_mode == SWING_ON
+        await self.coordinator.bhc.async_set_horizontal_swing(enabled)
+        await self.coordinator.async_request_refresh()
+
