@@ -1,0 +1,43 @@
+filter_timer_reset:
+  target:
+    entity:
+      integration: ecovent_v2
+      domain: fan
+
+reset_alarms:
+  target:
+    entity:
+      integration: ecovent_v2
+      domain: fan
+
+sync_device_clock:
+  target:
+    entity:
+      integration: ecovent_v2
+      domain: fan
+
+write_schedule:
+  target:
+    entity:
+      integration: ecovent_v2
+      domain: sensor
+  fields:
+    selected_day:
+      selector:
+        select:
+          options:
+            - Monday
+            - Tuesday
+            - Wednesday
+            - Thursday
+            - Friday
+            - Saturday
+            - Sunday
+
+    weekly_schedule_enabled:
+      selector:
+        boolean:
+
+    days:
+      selector:
+        object:
