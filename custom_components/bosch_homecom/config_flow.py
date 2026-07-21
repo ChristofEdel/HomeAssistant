@@ -20,14 +20,14 @@ from homeassistant.const import CONF_CODE, CONF_TOKEN, CONF_USERNAME
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
-from homecom_alt import (
+from .homecom_alt import (
     ApiError,
     AuthFailedError,
     ConnectionOptions,
     HomeComAlt,
     async_get_bacon_devices,
 )
-from homecom_alt.const import BACON_DEFAULT_REGION, BACON_KNOWN_REGIONS
+from .homecom_alt.const import BACON_DEFAULT_REGION, BACON_KNOWN_REGIONS
 import voluptuous as vol
 
 from .const import (

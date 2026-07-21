@@ -7,7 +7,7 @@ import logging
 from datetime import timedelta
 
 from aiohttp.client_exceptions import ClientConnectorError, ClientError
-from homecom_alt import (
+from .homecom_alt import (
     ApiError,
     AuthFailedError,
     BaconMqttClient,
@@ -40,7 +40,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from homecom_alt.const import BACON_DEFAULT_REGION
+from .homecom_alt.const import BACON_DEFAULT_REGION
 
 from .const import (
     CONF_BACON_CLIENT_ID,
