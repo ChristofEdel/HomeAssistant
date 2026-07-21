@@ -223,6 +223,9 @@ class BaconMqttClient:
         """
         if self._client is None:
             raise ApiError("Bacon MQTT client not connected")
+        topic = self._shadow_topic(serial, "get")
+        _LOGGER.debug("MQTT publishing: topic=%s payload=<empty>", topic)
+
         loop = asyncio.get_running_loop()
         future: asyncio.Future = loop.create_future()
         self._get_futures[serial] = future
@@ -289,6 +292,21 @@ class BaconMqttClient:
             payload = json.loads(msg.payload.decode()) if msg.payload else {}
         except (ValueError, UnicodeDecodeError):
             return
+        try:
+            payload = json.loads(msg.payload.decode()) if msg.payload else {}
+        except (ValueError, UnicodeDecodeError):
+            _LOGGER.debug(
+                "MQTT invalid payload: topic=%s raw=%r",
+                topic,
+                msg.payload,
+            )
+            return
+
+        _LOGGER.debug(
+            "MQTT received: topic=%s:\n%s",
+            topic,
+            json.dumps(payload, indent=2, ensure_ascii=False),
+        )
 
         if topic.endswith("/get/rejected"):
             self._resolve_get(serial, exc=ApiError(f"Shadow get rejected for {serial}"))

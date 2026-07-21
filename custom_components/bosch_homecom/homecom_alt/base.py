@@ -276,6 +276,16 @@ class HomeComAlt:
             raise NotRespondingError(f"{url} is not responding") from error
 
         _LOGGER.debug("Data retrieved from %s, status: %s", url, resp.status)
+        if _LOGGER.isEnabledFor(logging.DEBUG) and url.startswith(BOSCHCOM_DOMAIN):
+            body = await resp.text()
+            _LOGGER.debug(
+                "HomeCom response: method=%s url=%s status=%s body=%s",
+                method.upper(),
+                url,
+                resp.status,
+                body,
+            )
+
         if resp.status not in {HTTPStatus.OK.value, HTTPStatus.NO_CONTENT.value}:
             raise ApiError(f"Invalid response from {url}: {resp.status}")
 
