@@ -8,5 +8,6 @@
 /home-assistant_v2.db*
 /home-assistant.log*
 /secrets.yaml
+/custom_components/hacs
 __pycache__/
 Thumbs.db
