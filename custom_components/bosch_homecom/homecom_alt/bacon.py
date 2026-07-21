@@ -312,6 +312,29 @@ class BaconMqttClient:
             self._resolve_get(serial, exc=ApiError(f"Shadow get rejected for {serial}"))
             return
 
+        if topic.endswith("/topics/sensor"):
+            items = payload.get("items", []) if isinstance(payload, dict) else []
+
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+
+                room_temperature = item.get("roomTemperature")
+
+                if isinstance(room_temperature, (int, float)):
+                    result = {
+                        "reported": {
+                            "roomTemperature": room_temperature,
+                        },
+                        "desired": {},
+                    }
+
+                    for callback in self._listeners.get(serial, []):
+                        if self._loop is not None:
+                            self._loop.call_soon_threadsafe(callback, result)
+
+            return
+
         is_get = topic.endswith("/get/accepted")
         is_update = topic.endswith("/update/accepted")
         if not (is_get or is_update):
@@ -387,3 +410,11 @@ class HomeComBaconRac:
             desired["vSwingEnabled"] = bool(vertical)
         if desired:
             await self._client.async_set_desired(self.device_id, desired)
+
+    async def async_set_vertical_swing(self, enabled: bool) -> None:
+        """Enable/disable vertical swing."""
+        await self._client.async_set_desired(self.device_id, {"vSwingEnabled": bool(enabled)})
+
+    async def async_set_horizontal_swing(self, enabled: bool) -> None:
+        """Enable/disable vertical swing."""
+        await self._client.async_set_desired(self.device_id, {"hSwingEnabled": bool(enabled)})
