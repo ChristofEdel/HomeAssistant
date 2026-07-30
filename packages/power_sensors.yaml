@@ -1,0 +1,212 @@
+# Because the Victron integration only polls every 30 seconds, we use our own MQTT sensors to get real-time
+# power measurements for automations and triggers. 
+#
+# Because we can only have one MQTT server, we have to make sure that Mosquitto is configured to forward the 
+# Victron MQTT messages to the local broker as follows (c0619ab7c817 is the Victron device ID):
+#     topic # in 0 victron/N/ N/c0619ab7c817/
+#     topic # out 0 victron/R/ R/c0619ab7c817/
+#     topic # out 0 victron/W/ W/c0619ab7c817/
+
+mqtt:
+  sensor:
+    # 1. Real-Time Grid Power (For instant automations/triggers)
+    - name: "Real-Time Grid Power"
+      unique_id: victron_real_time_grid_power
+      default_entity_id: sensor.victron_real_time_grid_power
+      state_topic: "victron/N/system/0/Ac/Grid/L1/Power"
+      value_template: "{{ value_json.value | round(1) }}"
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      device:
+        identifiers: victron_real_time_metrics
+        name: "Victron Real-Time Metrics"
+        manufacturer: "Victron Energy"
+        model: "GX System"
+
+    # 2. Real-Time Consumption
+    - name: "Real-Time Power Consumption"
+      unique_id: victron_real_time_power_consumption
+      default_entity_id: sensor.victron_real_time_power_consumption
+      state_topic: "victron/N/system/0/Ac/Consumption/L1/Power"
+      value_template: "{{ value_json.value | round(1) }}"
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      device:
+        identifiers: victron_real_time_metrics
+
+    # 3. Real-time power to (+) or from (-) battery
+    #    This is measured  on the DC side of the Victron system, so combining consumption, 
+    #    solar power, grid power and battery power will NOT net to zero
+    - name: "Real-Time Power To Battery"
+      unique_id: victron_real_time_battery_power
+      default_entity_id: sensor.victron_real_time_battery_power
+      state_topic: "victron/N/system/0/Dc/Battery/Power"
+      value_template: "{{ value_json.value | round(1) }}"
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      device:
+        identifiers: victron_real_time_metrics
+
+    # 4. Real-time power from the solar panels
+    - name: "Real-Time Solar Power"
+      unique_id: victron_real_time_solar_power
+      default_entity_id: sensor.victron_real_time_solar_power
+      state_topic: "victron/N/system/0/Ac/PvOnOutput/L1/Power"
+      value_template: "{{ value_json.value | round(1) }}"
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      device:
+        identifiers: victron_real_time_metrics
+
+
+automation:
+  - alias: "Victron MQTT Keep-Alive"
+    id: victron_mqtt_keep_alive
+    description: "Pings the Victron GX local broker via the Mosquitto bridge to maintain the real-time data stream."
+    trigger:
+      - platform: time_pattern
+        seconds: "/30"
+    condition: []
+    action:
+      - action: mqtt.publish
+        data:
+          topic: "victron/R/keepalive"
+          payload: "{}"
+    mode: single
+
+
+template:
+  - sensor:
+    # 5. AC-side estimate of battery power
+    #    See (3) above - we only have the DC battery power measurement, so we calculate the AC-side battery power as:
+    #    battery_power = grid_power + solar_power - consumption_power
+    - name: "Real-Time Power To Battery (calculated)"
+      unique_id: victron_real_time_battery_power_calculated
+      default_entity_id: sensor.victron_real_time_battery_power_calculated
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      availability: >
+        {{
+          is_number(states('sensor.victron_real_time_grid_power'))
+          and is_number(states('sensor.victron_real_time_solar_power'))
+          and is_number(states('sensor.victron_real_time_power_consumption'))
+        }}
+      state: >
+        {{
+          (
+            states('sensor.victron_real_time_grid_power') | float
+            + states('sensor.victron_real_time_solar_power') | float
+            - states('sensor.victron_real_time_power_consumption') | float
+          ) 
+        }}
+
+      # 6. Calculated battery power minus measured DC battery power
+      # Zero = perfect agreement
+      # Positive = calculated charging power is higher
+    - name: "Real-Time Power Tracking Error"
+      unique_id: victron_real_time_power_tracking_error
+      default_entity_id: sensor.victron_real_time_power_tracking_error
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      availability: >
+        {{
+          is_number(states('sensor.victron_real_time_grid_power'))
+          and is_number(states('sensor.victron_real_time_solar_power'))
+          and is_number(states('sensor.victron_real_time_power_consumption'))
+          and is_number(states('sensor.victron_real_time_battery_power'))
+        }}
+      state: >
+        {{
+          (
+            states('sensor.victron_real_time_grid_power') | float
+            + states('sensor.victron_real_time_solar_power') | float
+            - states('sensor.victron_real_time_power_consumption') | float
+            - states('sensor.victron_real_time_battery_power') | float
+          )
+        }}
+
+      # 6. Calculated battery power minus measured DC battery power
+      # Zero = perfect agreement
+      # Positive = calculated charging power is higher
+    - name: "Real-Time Power Untracked"
+      unique_id: victron_real_time_power_untracked
+      default_entity_id: sensor.victron_real_time_power_untracked
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      availability: >
+        {{
+          is_number(states('sensor.victron_real_time_grid_power'))
+          and is_number(states('sensor.victron_real_time_solar_power'))
+          and is_number(states('sensor.victron_real_time_power_consumption'))
+          and is_number(states('sensor.victron_real_time_battery_power_calculated'))
+        }}
+      state: >
+        {{
+          (
+            states('sensor.victron_real_time_grid_power') | float
+            + states('sensor.victron_real_time_solar_power') | float
+            - states('sensor.victron_real_time_power_consumption') | float
+            - states('sensor.victron_real_time_battery_power_calculated') | float
+          )
+        }}
+
+  # Homeassistant's built-in power dashboards needs a total imported energy and total exported energy sensor. 
+  # The Victron integration does not provide these, so we use the MQTT sensors to calculate them.
+  #
+  # NOTE - there is no point to do this real-time, so we use the standard Victron integration for these sensors
+    - name: "Grid Power L1 - Import"
+      unique_id: victron_gx_grid_power_l1_import
+      default_entity_id: sensor.victron_gx_grid_power_l1_import
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      state: >
+        {{ max(0, states('sensor.victron_gx_grid_power_l1') | float(0)) }}
+      availability: >
+        {{ has_value('sensor.victron_gx_grid_power_l1') }}
+
+    - name: "Grid Power L1 - Export"
+      unique_id: victron_gx_grid_power_l1_export
+      default_entity_id: sensor.victron_gx_grid_power_l1_export
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      state: >
+        {{ max(0, -states('sensor.victron_gx_grid_power_l1') | float(0)) }}
+      availability: >
+        {{ has_value('sensor.victron_gx_grid_power_l1') }}
+
+sensor:
+  - platform: integration
+    source: sensor.victron_gx_grid_power_l1_import
+    name: "Grid Energy - Import"
+    unique_id: grid_energy_import
+    method: left
+    unit_prefix: k
+    unit_time: h
+    round: 3
+
+  - platform: integration
+    source: sensor.victron_gx_grid_power_l1_export
+    name: "Grid Energy - Export"
+    unique_id: grid_energy_export
+    method: left
+    unit_prefix: k
+    unit_time: h
+    round: 3
+
+homeassistant:
+  customize:
+    sensor.grid_energy_import:
+      state_class: total_increasing
+    sensor.grid_energy_export:
+      state_class: total_increasing
+
+
