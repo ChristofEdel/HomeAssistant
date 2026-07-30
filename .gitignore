@@ -13,3 +13,4 @@ __pycache__/
 Thumbs.db
 /custom_components/opensprinkler/
 /www/community/opensprinkler-card
+/custom_components/popup_card
