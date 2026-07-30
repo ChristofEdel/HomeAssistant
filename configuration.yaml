@@ -17,6 +17,8 @@ recorder:
 # Load frontend themes from the themes folder
 frontend:
   themes: !include_dir_merge_named themes
+  extra_module_url:
+    - /hacsfiles/lovelace-card-mod/card-mod.js?hacstag=190927524421
 
 # load automations, scripts and scenes from separate files
 # I don't use this, all my automations, scripts and scenes are in packages.
