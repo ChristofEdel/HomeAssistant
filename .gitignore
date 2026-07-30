@@ -11,3 +11,5 @@
 /custom_components/hacs
 __pycache__/
 Thumbs.db
+/custom_components/opensprinkler/
+/www/community/opensprinkler-card
