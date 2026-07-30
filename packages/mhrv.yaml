@@ -190,7 +190,7 @@ template:
 modbus:
   - name: mhrv
     type: tcp
-    host: mhrv.home
+    host: mhrv.internal
     port: 502
     timeout: 5
     message_wait_milliseconds: 100
