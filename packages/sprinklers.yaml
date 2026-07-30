@@ -1,0 +1,341 @@
+# Station specific water sensors/meters
+#
+# Stations: 
+# - garden_sprinklers_front_lawn_station
+# - garden_sprinklers_lawn_left_1_station
+# - garden_sprinklers_lawn_left_2_station
+# - garden_sprinklers_lawn_mid_station
+# - garden_sprinklers_lawn_right_station
+# - garden_sprinklers_trees_station
+# - garden_sprinklers_veggies_station
+#
+# The OpenSprinkler integration only has a single flow meter covering all stations.
+# Since only one station can run at a time, we can use the flow meter to measure
+# the water usage for each station.
+#
+# For each of the above stations, the below creates 
+#    - a flow rate sensor (..._flow_rate)
+#    - a water total sensor (..._water_total), and
+#    - a daily utility meter (..._water_daily).
+#
+
+template:
+  - sensor:
+      # Front Lawn
+      - name: "Garden Sprinklers Front Lawn Station Flow Rate"
+        unique_id: garden_sprinklers_front_lawn_station_flow_rate
+        device_class: volume_flow_rate
+        state_class: measurement
+        unit_of_measurement: "L/min"
+        availability: >
+          {{
+            states('binary_sensor.garden_sprinklers_front_lawn_station_running')
+              in ['on', 'off']
+            and (
+              is_state(
+                'binary_sensor.garden_sprinklers_front_lawn_station_running',
+                'off'
+              )
+              or is_number(states('sensor.garden_sprinklers_flow_rate'))
+            )
+          }}
+        state: >
+          {% if is_state(
+            'binary_sensor.garden_sprinklers_front_lawn_station_running',
+            'on'
+          ) %}
+            {{ states('sensor.garden_sprinklers_flow_rate') | float }}
+          {% else %}
+            0
+          {% endif %}
+
+      # Lawn Left 1
+      - name: "Garden Sprinklers Lawn Left 1 Station Flow Rate"
+        unique_id: garden_sprinklers_lawn_left_1_station_flow_rate
+        device_class: volume_flow_rate
+        state_class: measurement
+        unit_of_measurement: "L/min"
+        availability: >
+          {{
+            states('binary_sensor.garden_sprinklers_lawn_left_1_station_running')
+              in ['on', 'off']
+            and (
+              is_state(
+                'binary_sensor.garden_sprinklers_lawn_left_1_station_running',
+                'off'
+              )
+              or is_number(states('sensor.garden_sprinklers_flow_rate'))
+            )
+          }}
+        state: >
+          {% if is_state(
+            'binary_sensor.garden_sprinklers_lawn_left_1_station_running',
+            'on'
+          ) %}
+            {{ states('sensor.garden_sprinklers_flow_rate') | float }}
+          {% else %}
+            0
+          {% endif %}
+
+      # Lawn Left 2
+      - name: "Garden Sprinklers Lawn Left 2 Station Flow Rate"
+        unique_id: garden_sprinklers_lawn_left_2_station_flow_rate
+        device_class: volume_flow_rate
+        state_class: measurement
+        unit_of_measurement: "L/min"
+        availability: >
+          {{
+            states('binary_sensor.garden_sprinklers_lawn_left_2_station_running')
+              in ['on', 'off']
+            and (
+              is_state(
+                'binary_sensor.garden_sprinklers_lawn_left_2_station_running',
+                'off'
+              )
+              or is_number(states('sensor.garden_sprinklers_flow_rate'))
+            )
+          }}
+        state: >
+          {% if is_state(
+            'binary_sensor.garden_sprinklers_lawn_left_2_station_running',
+            'on'
+          ) %}
+            {{ states('sensor.garden_sprinklers_flow_rate') | float }}
+          {% else %}
+            0
+          {% endif %}
+
+      # Lawn Mid
+      - name: "Garden Sprinklers Lawn Mid Station Flow Rate"
+        unique_id: garden_sprinklers_lawn_mid_station_flow_rate
+        device_class: volume_flow_rate
+        state_class: measurement
+        unit_of_measurement: "L/min"
+        availability: >
+          {{
+            states('binary_sensor.garden_sprinklers_lawn_mid_station_running')
+              in ['on', 'off']
+            and (
+              is_state(
+                'binary_sensor.garden_sprinklers_lawn_mid_station_running',
+                'off'
+              )
+              or is_number(states('sensor.garden_sprinklers_flow_rate'))
+            )
+          }}
+        state: >
+          {% if is_state(
+            'binary_sensor.garden_sprinklers_lawn_mid_station_running',
+            'on'
+          ) %}
+            {{ states('sensor.garden_sprinklers_flow_rate') | float }}
+          {% else %}
+            0
+          {% endif %}
+
+      # Lawn Right
+      - name: "Garden Sprinklers Lawn Right Station Flow Rate"
+        unique_id: garden_sprinklers_lawn_right_station_flow_rate
+        device_class: volume_flow_rate
+        state_class: measurement
+        unit_of_measurement: "L/min"
+        availability: >
+          {{
+            states('binary_sensor.garden_sprinklers_lawn_right_station_running')
+              in ['on', 'off']
+            and (
+              is_state(
+                'binary_sensor.garden_sprinklers_lawn_right_station_running',
+                'off'
+              )
+              or is_number(states('sensor.garden_sprinklers_flow_rate'))
+            )
+          }}
+        state: >
+          {% if is_state(
+            'binary_sensor.garden_sprinklers_lawn_right_station_running',
+            'on'
+          ) %}
+            {{ states('sensor.garden_sprinklers_flow_rate') | float }}
+          {% else %}
+            0
+          {% endif %}
+
+      # Trees
+      - name: "Garden Sprinklers Trees Station Flow Rate"
+        unique_id: garden_sprinklers_trees_station_flow_rate
+        device_class: volume_flow_rate
+        state_class: measurement
+        unit_of_measurement: "L/min"
+        availability: >
+          {{
+            states('binary_sensor.garden_sprinklers_trees_station_running')
+              in ['on', 'off']
+            and (
+              is_state(
+                'binary_sensor.garden_sprinklers_trees_station_running',
+                'off'
+              )
+              or is_number(states('sensor.garden_sprinklers_flow_rate'))
+            )
+          }}
+        state: >
+          {% if is_state(
+            'binary_sensor.garden_sprinklers_trees_station_running',
+            'on'
+          ) %}
+            {{ states('sensor.garden_sprinklers_flow_rate') | float }}
+          {% else %}
+            0
+          {% endif %}
+
+      # Veggies
+      - name: "Garden Sprinklers Veggies Station Flow Rate"
+        unique_id: garden_sprinklers_veggies_station_flow_rate
+        device_class: volume_flow_rate
+        state_class: measurement
+        unit_of_measurement: "L/min"
+        availability: >
+          {{
+            states('binary_sensor.garden_sprinklers_veggies_station_running')
+              in ['on', 'off']
+            and (
+              is_state(
+                'binary_sensor.garden_sprinklers_veggies_station_running',
+                'off'
+              )
+              or is_number(states('sensor.garden_sprinklers_flow_rate'))
+            )
+          }}
+        state: >
+          {% if is_state(
+            'binary_sensor.garden_sprinklers_veggies_station_running',
+            'on'
+          ) %}
+            {{ states('sensor.garden_sprinklers_flow_rate') | float }}
+          {% else %}
+            0
+          {% endif %}
+
+
+sensor:
+  - platform: integration
+    source: sensor.garden_sprinklers_front_lawn_station_flow_rate
+    name: "Garden Sprinklers Front Lawn Station Water Total"
+    unique_id: garden_sprinklers_front_lawn_station_water_total
+    unit_time: min
+    method: left
+    round: 2
+    max_sub_interval:
+      seconds: 10
+
+  - platform: integration
+    source: sensor.garden_sprinklers_lawn_left_1_station_flow_rate
+    name: "Garden Sprinklers Lawn Left 1 Station Water Total"
+    unique_id: garden_sprinklers_lawn_left_1_station_water_total
+    unit_time: min
+    method: left
+    round: 2
+    max_sub_interval:
+      seconds: 10
+
+  - platform: integration
+    source: sensor.garden_sprinklers_lawn_left_2_station_flow_rate
+    name: "Garden Sprinklers Lawn Left 2 Station Water Total"
+    unique_id: garden_sprinklers_lawn_left_2_station_water_total
+    unit_time: min
+    method: left
+    round: 2
+    max_sub_interval:
+      seconds: 10
+
+  - platform: integration
+    source: sensor.garden_sprinklers_lawn_mid_station_flow_rate
+    name: "Garden Sprinklers Lawn Mid Station Water Total"
+    unique_id: garden_sprinklers_lawn_mid_station_water_total
+    unit_time: min
+    method: left
+    round: 2
+    max_sub_interval:
+      seconds: 10
+
+  - platform: integration
+    source: sensor.garden_sprinklers_lawn_right_station_flow_rate
+    name: "Garden Sprinklers Lawn Right Station Water Total"
+    unique_id: garden_sprinklers_lawn_right_station_water_total
+    unit_time: min
+    method: left
+    round: 2
+    max_sub_interval:
+      seconds: 10
+
+  - platform: integration
+    source: sensor.garden_sprinklers_trees_station_flow_rate
+    name: "Garden Sprinklers Trees Station Water Total"
+    unique_id: garden_sprinklers_trees_station_water_total
+    unit_time: min
+    method: left
+    round: 2
+    max_sub_interval:
+      seconds: 10
+
+  - platform: integration
+    source: sensor.garden_sprinklers_veggies_station_flow_rate
+    name: "Garden Sprinklers Veggies Station Water Total"
+    unique_id: garden_sprinklers_veggies_station_water_total
+    unit_time: min
+    method: left
+    round: 2
+    max_sub_interval:
+      seconds: 10
+
+
+utility_meter:
+  garden_sprinklers_front_lawn_station_water_daily:
+    name: "Garden Sprinklers Front Lawn Station Water Daily"
+    unique_id: garden_sprinklers_front_lawn_station_water_daily
+    source: sensor.garden_sprinklers_front_lawn_station_water_total
+    cycle: daily
+    periodically_resetting: false
+
+  garden_sprinklers_lawn_left_1_station_water_daily:
+    name: "Garden Sprinklers Lawn Left 1 Station Water Daily"
+    unique_id: garden_sprinklers_lawn_left_1_station_water_daily
+    source: sensor.garden_sprinklers_lawn_left_1_station_water_total
+    cycle: daily
+    periodically_resetting: false
+
+  garden_sprinklers_lawn_left_2_station_water_daily:
+    name: "Garden Sprinklers Lawn Left 2 Station Water Daily"
+    unique_id: garden_sprinklers_lawn_left_2_station_water_daily
+    source: sensor.garden_sprinklers_lawn_left_2_station_water_total
+    cycle: daily
+    periodically_resetting: false
+
+  garden_sprinklers_lawn_mid_station_water_daily:
+    name: "Garden Sprinklers Lawn Mid Station Water Daily"
+    unique_id: garden_sprinklers_lawn_mid_station_water_daily
+    source: sensor.garden_sprinklers_lawn_mid_station_water_total
+    cycle: daily
+    periodically_resetting: false
+
+  garden_sprinklers_lawn_right_station_water_daily:
+    name: "Garden Sprinklers Lawn Right Station Water Daily"
+    unique_id: garden_sprinklers_lawn_right_station_water_daily
+    source: sensor.garden_sprinklers_lawn_right_station_water_total
+    cycle: daily
+    periodically_resetting: false
+
+  garden_sprinklers_trees_station_water_daily:
+    name: "Garden Sprinklers Trees Station Water Daily"
+    unique_id: garden_sprinklers_trees_station_water_daily
+    source: sensor.garden_sprinklers_trees_station_water_total
+    cycle: daily
+    periodically_resetting: false
+
+  garden_sprinklers_veggies_station_water_daily:
+    name: "Garden Sprinklers Veggies Station Water Daily"
+    unique_id: garden_sprinklers_veggies_station_water_daily
+    source: sensor.garden_sprinklers_veggies_station_water_total
+    cycle: daily
+    periodically_resetting: false
