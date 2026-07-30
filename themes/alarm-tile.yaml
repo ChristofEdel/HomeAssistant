@@ -1,0 +1,25 @@
+alarm-card-styles:
+  card-mod-theme: alarm-card-styles
+
+  card-mod-card: |
+    :host(.alarm-tile) {
+      --ha-card-background: red;
+      --card-background-color: red;
+      --primary-text-color: white;
+      --secondary-text-color: white;
+      --ha-tile-info-primary-font-size: 20px;
+      --tile-color: white;
+      --state-icon-color: white;
+      --state-inactive-color: white;
+    }
+
+    :host(.warning-tile) {
+      --ha-card-background: darkorange;
+      --card-background-color: darkorange;
+      --primary-text-color: black;
+      --secondary-text-color: black;
+      --ha-tile-info-primary-font-size: 20px;
+      --tile-color: black;
+      --state-icon-color: black;
+      --state-inactive-color: black;
+    }

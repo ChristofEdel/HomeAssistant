@@ -1,0 +1,89 @@
+input_number:
+  battery_min_charge_warning_level:
+    # the level at which the battery low warning will be triggered, as a % of full charge
+    # 0 = no alarm
+    name: Battery minimum charge warning level
+    min: 0
+    max: 100
+    step: 1
+    mode: box
+    unit_of_measurement: "%"
+
+  battery_min_charge_alarm_level:
+    # the level at which the battery low alarm will be triggered, as a % of full charge
+    # 0 = no alarm
+    name: Battery minimum charge alarm level
+    min: 0
+    max: 100
+    step: 1
+    mode: box
+    unit_of_measurement: "%"
+
+  battery_min_charge_warning_level_off_grid:
+    # the level at which the battery low warning will be triggered, as a % of full charge
+    # if the system is off grid (i.e. the grid connection is down)
+    # 0 = no alarm
+    name: Battery minimum charge warning level (off-grid)
+    min: 0
+    max: 100
+    step: 1
+    mode: box
+    unit_of_measurement: "%"
+
+  battery_min_charge_alarm_level_off_grid:
+    # the level at which the battery low alarm will be triggered, as a % of full charge,
+    # if the system is off grid (i.e. the grid connection is down)
+    # 0 = no alarm
+    name: Battery minimum charge alarm level (off-grid)
+    min: 0
+    max: 100
+    step: 1
+    mode: box
+    unit_of_measurement: "%"
+
+template:
+  - sensor:
+      # Battery Low Alarm - currently with hard-coded thresholds
+      - name: "Battery Low"
+        unique_id: battery_low_alarm
+        default_entity_id: sensor.battery_low_alarm
+        state: >
+          {% set battery = states('sensor.victron_gx_dc_battery_charge') | float(1) %}
+          {% set off_grid = is_state(
+            'sensor.victron_multiplus_ii_grid_lost_alarm',
+            'alarm'
+          ) %}
+
+          {% if off_grid and battery < states('input_number.battery_min_charge_alarm_level_off_grid') | float(1) %}
+            alarm
+          {% elif off_grid and battery < states('input_number.battery_min_charge_warning_level_off_grid') | float(1) %}
+            warning
+          {% elif not off_grid and battery < states('input_number.battery_min_charge_alarm_level') | float(1) %}
+            alarm
+          {% elif not off_grid and battery < states('input_number.battery_min_charge_warning_level') | float(1) %}
+            warning
+          {% else %}
+            normal
+          {% endif %}
+        availability: >
+          {{ is_number(states('sensor.victron_gx_dc_battery_charge'))
+              and states('sensor.victron_multiplus_ii_grid_lost_alarm')
+                  not in ['unknown', 'unavailable'] }}
+        icon: >
+          {% set battery = states('sensor.victron_gx_dc_battery_charge') | float(1) %}
+          {% set off_grid = is_state(
+            'sensor.victron_multiplus_ii_grid_lost_alarm',
+            'alarm'
+          ) %}
+
+          {% if off_grid and battery < states('input_number.battery_min_charge_alarm_level_off_grid') | float(1) %}
+            mdi:battery-alert
+          {% elif off_grid and battery < states('input_number.battery_min_charge_warning_level_off_grid') | float(1) %}
+            mdi:battery-alert
+          {% elif not off_grid and battery < states('input_number.battery_min_charge_alarm_level') | float(1) %}
+            mdi:battery-alert
+          {% elif not off_grid and battery < states('input_number.battery_min_charge_warning_level') | float(1) %}
+            mdi:battery-alert
+          {% else %}
+            mdi:battery-check
+          {% endif %}
