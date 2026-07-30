@@ -1,6 +1,6 @@
 sensor:
   - platform: integration
-    source: sensor.dtu_4121a016d2f3_pv_power
+    source: sensor.opendtu_4b0618_ac_power
     name: Solar Energy Total
     unique_id: solar_energy_total
     unit_prefix: k
