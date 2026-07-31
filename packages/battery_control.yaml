@@ -1,0 +1,314 @@
+# Home assitant package: Controller for battery charge / discharge control.
+#
+# Normally, the Inverter is set to charge and discharge the battery so there is zero import or export
+# of power from the grid.
+#
+# This packages allows the user to set 
+#   - a minimum battery charge level, below which the inverter will be forced to charge the battery 
+#     at maximum rate (from all sources including the grid)
+#     This can be used to charge the battery during cheaper tariff periods
+#
+#   - a maximum battery charge level, above which charging will be disabled 
+#     This can be used to keep the battery below 100% to preserve battery life or to preserve
+#     charging headroom to absorb a spike when the grid fails
+#
+#   - a "do not discharge" flag that, if set, will prevent the inverter from discharging the battery at all, 
+#     even if the battery is above the minimum charge level. This can be used to prevent excessive battery 
+#     use by high-power consumers such as an EV charger
+
+# packages/battery_control.yaml
+
+input_number:
+  battery_control_charge_limit:
+    name: Battery control charge limit setting
+    min: 0
+    max: 100
+    step: 1
+    mode: slider
+    unit_of_measurement: "%"
+    icon: mdi:battery-lock
+
+  battery_control_charge_target:
+    name: Battery control charge target setting
+    min: 0
+    max: 100
+    step: 1
+    mode: slider
+    unit_of_measurement: "%"
+    icon: mdi:battery-charging
+
+input_boolean:
+  battery_control_prevent_discharging:
+    name: Battery control prevent discharging
+    icon: mdi:battery-lock-outline
+
+  # Internal: ensures defaults are only applied once.
+  battery_control_initialised:
+    name: Battery control initialised
+    icon: mdi:cog-check
+
+template:
+  - sensor:
+      # A sensor that reflects the current battery charge limit setting, 
+      # (if one applies), and is unavailable if there is no limit
+      - name: Battery Control Charge Limit
+        unique_id: battery_control_charge_limit
+        default_entity_id: sensor.battery_control_charge_limit
+        unit_of_measurement: "%"
+        state_class: measurement
+        availability: >
+          {{
+            has_value('input_number.battery_control_charge_limit')
+            and
+            (states('input_number.battery_control_charge_limit') | float(100)) < 100
+          }}
+        state: >
+          {{ states('input_number.battery_control_charge_limit') | float }}
+
+      # A sensor that reflects the current battery charge target setting, 
+      # (if one applies), and is unavailable if there is no target
+      - name: Battery Control Charge Target
+        unique_id: battery_control_charge_target
+        default_entity_id: sensor.battery_control_charge_target
+        unit_of_measurement: "%"
+        state_class: measurement
+        availability: >
+          {{
+            has_value('input_number.battery_control_charge_target')
+            and
+            (states('input_number.battery_control_charge_target') | float(0)) > 0
+          }}
+        state: >
+          {{ states('input_number.battery_control_charge_target') | float }}
+
+      # A sensor that reflects the current battery charge mode, 
+      #   charge_blocked --> do not charge
+      #   force_charging --> charge at maximum rate
+      #   standard --> (dis-)charge normally (prevent import/export
+      #   no_grid --> grid is unavailable
+      - name: Battery Control Mode
+        unique_id: battery_control_mode
+        default_entity_id: sensor.battery_control_mode
+        icon: mdi:battery-sync
+        availability: >
+          {{
+            has_value('sensor.victron_gx_dc_battery_charge')
+            and has_value('sensor.victron_multiplus_ii_grid_lost_alarm')
+            and has_value('input_number.battery_control_charge_limit')
+            and has_value('input_number.battery_control_charge_target')
+          }}
+        state: >
+          {% set no_grid = is_state('sensor.victron_multiplus_ii_grid_lost_alarm', 'alarm') %}
+          {% set charge = states('sensor.victron_gx_dc_battery_charge') | float %}
+          {% set limit  = states('input_number.battery_control_charge_limit') | float(100) %}
+          {% set target = states('input_number.battery_control_charge_target') | float(0) %}
+
+          {% if no_grid %}
+            no_grid
+          {% elif charge >= limit and limit < 100 %}
+            charge_blocked
+          {% elif charge < target %}
+            force_charging
+          {% else %}
+            standard
+          {% endif %}
+        attributes:
+          effective_charge_limit: >
+            {{ states('input_number.battery_control_charge_limit') | float(100) }}
+          effective_charge_target: >
+            {{ states('input_number.battery_control_charge_target') | float(0) }}
+
+script:
+  battery_control_apply:
+    alias: Battery control - apply Victron settings
+    mode: restart
+
+    sequence:
+      # Configuration: Variables that are used to control the Victron system. 
+      - variables:
+          max_charge_current_entity: number.victron_gx_ess_max_charge_current
+          force_charge_entity: switch.victron_ess_force_charge
+          max_discharge_power_entity: number.victron_gx_ess_max_inverter_power_limit
+
+      # Local variables: target values taken from the states / inputs
+      - variables:
+          desired_mode: "{{ states('sensor.battery_control_mode') }}"
+          prevent_discharging: >
+            {{
+              is_state(
+                'input_boolean.battery_control_prevent_discharging',
+                'on'
+              )
+            }}
+
+      # Pre-entry checks: ensure that the variables are initialised
+      # and the required Victron controls are available.
+      - condition: state
+        entity_id: input_boolean.battery_control_initialised
+        state: "on"
+
+      - condition: template
+        value_template: >
+          {{
+            states(max_charge_current_entity) | is_number
+            and states(force_charge_entity) in ['on', 'off']
+            and states(max_discharge_power_entity) | is_number
+          }}
+
+      # Apply the charging mode.
+      - choose:
+          # No grid: everything back to normal
+          - conditions:
+              - condition: template
+                value_template: "{{ desired_mode == 'no_grid' }}"
+            sequence:
+              - action: switch.turn_off
+                target:
+                  entity_id: "{{ force_charge_entity }}"
+
+              - action: number.set_value
+                target:
+                  entity_id: "{{ max_charge_current_entity }}"
+                data:
+                  value: -1
+
+          # At or above the charge limit: prevent charging.
+          - conditions:
+              - condition: template
+                value_template: "{{ desired_mode == 'charge_blocked' }}"
+            sequence:
+              - action: switch.turn_off
+                target:
+                  entity_id: "{{ force_charge_entity }}"
+
+              - action: number.set_value
+                target:
+                  entity_id: "{{ max_charge_current_entity }}"
+                data:
+                  value: 0
+
+          # Below the charge target: charge at maximum.
+          - conditions:
+              - condition: template
+                value_template: "{{ desired_mode == 'force_charging' }}"
+            sequence:
+              - action: number.set_value
+                target:
+                  entity_id: "{{ max_charge_current_entity }}"
+                data:
+                  value: -1
+
+              - action: switch.turn_on
+                target:
+                  entity_id: "{{ force_charge_entity }}"
+
+          # Between target and limit: normal ESS behaviour.
+          - conditions:
+              - condition: template
+                value_template: "{{ desired_mode == 'standard' }}"
+            sequence:
+              - action: switch.turn_off
+                target:
+                  entity_id: "{{ force_charge_entity }}"
+
+              - action: number.set_value
+                target:
+                  entity_id: "{{ max_charge_current_entity }}"
+                data:
+                  value: -1
+
+        default:
+          # Unknown mode: stop without changing discharge control.
+          - stop: >
+              Battery control mode is invalid or unavailable:
+              {{ desired_mode }}
+
+      # Discharge prevention operates independently of charging mode.
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ prevent_discharging and desired_mode != 'no_grid' }}"
+            sequence:
+              - action: number.set_value
+                target:
+                  entity_id: "{{ max_discharge_power_entity }}"
+                data:
+                  value: 0
+
+        default:
+          - action: number.set_value
+            target:
+              entity_id: "{{ max_discharge_power_entity }}"
+            data:
+              value: -1
+
+
+automation:
+  # Initialise the battery control settings to defaults on first startup
+  - id: battery_control_initialise
+    alias: Battery control - initialise defaults
+    mode: single
+
+    triggers:
+      - trigger: homeassistant
+        event: start
+
+    actions:
+      - condition: state
+        entity_id: input_boolean.battery_control_initialised
+        state: "off"
+        
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.battery_control_charge_limit
+        data:
+          value: 100
+
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.battery_control_charge_target
+        data:
+          value: 0
+
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.battery_control_prevent_discharging
+
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.battery_control_initialised
+
+
+  - id: battery_control_apply_to_victron
+    alias: Battery Control - Apply Control Settings to Victron
+    mode: restart
+
+    triggers:
+      - trigger: state
+        entity_id:
+          - sensor.battery_control_mode
+          - input_boolean.battery_control_prevent_discharging
+          - input_boolean.battery_control_initialised
+
+      - trigger: time_pattern
+        minutes: "/1"
+
+      - trigger: homeassistant
+        event: start
+
+      - trigger: template
+        value_template: >
+          {{
+            states('number.victron_gx_ess_max_charge_current') | is_number
+            and states('switch.victron_ess_force_charge') in ['on', 'off']
+            and states(
+              'number.victron_gx_ess_max_inverter_power_limit'
+            ) | is_number
+          }}
+
+    actions:
+      - condition: state
+        entity_id: input_boolean.battery_control_initialised
+        state: "on"
+
+      - action: script.battery_control_apply
