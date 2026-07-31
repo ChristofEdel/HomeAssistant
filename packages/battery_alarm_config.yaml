@@ -1,0 +1,265 @@
+input_number:
+  # Temporary values used by the dashboard.
+  battery_min_charge_warning_level_pending:
+    name: Battery minimum charge warning level (pending)
+    min: 0
+    max: 100
+    step: 1
+    mode: slider
+    unit_of_measurement: "%"
+
+  battery_min_charge_alarm_level_pending:
+    name: Battery minimum charge alarm level (pending)
+    min: 0
+    max: 100
+    step: 1
+    mode: slider
+    unit_of_measurement: "%"
+
+  battery_min_charge_warning_level_off_grid_pending:
+    name: Battery minimum charge warning level off-grid (pending)
+    min: 0
+    max: 100
+    step: 1
+    mode: slider
+    unit_of_measurement: "%"
+
+  battery_min_charge_alarm_level_off_grid_pending:
+    name: Battery minimum charge alarm level off-grid (pending)
+    min: 0
+    max: 100
+    step: 1
+    mode: slider
+    unit_of_measurement: "%"
+
+
+input_boolean:
+  battery_min_charge_levels_loading:
+    name: Battery minimum charge levels loading
+    initial: false
+
+
+script:
+  battery_min_charge_levels_cancel:
+    alias: Battery minimum charge levels - Cancel
+    mode: restart
+    sequence:
+      # Prevent the slider constraint automation from reacting while
+      # the four pending values are being loaded.
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.battery_min_charge_levels_loading
+
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.battery_min_charge_warning_level_pending
+        data:
+          value: >
+            {{ states('input_number.battery_min_charge_warning_level')
+               | float(0) }}
+
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.battery_min_charge_alarm_level_pending
+        data:
+          value: >
+            {{ states('input_number.battery_min_charge_alarm_level')
+               | float(0) }}
+
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.battery_min_charge_warning_level_off_grid_pending
+        data:
+          value: >
+            {{ states('input_number.battery_min_charge_warning_level_off_grid')
+               | float(0) }}
+
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.battery_min_charge_alarm_level_off_grid_pending
+        data:
+          value: >
+            {{ states('input_number.battery_min_charge_alarm_level_off_grid')
+               | float(0) }}
+
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.battery_min_charge_levels_loading
+
+
+  battery_min_charge_levels_save:
+    alias: Battery minimum charge levels - Save
+    mode: single
+    sequence:
+      # Snapshot all four pending values when Save is pressed.
+      - variables:
+          warning: >
+            {{ states('input_number.battery_min_charge_warning_level_pending')
+               | float(0) }}
+          alarm: >
+            {{ states('input_number.battery_min_charge_alarm_level_pending')
+               | float(0) }}
+          warning_off_grid: >
+            {{ states(
+                 'input_number.battery_min_charge_warning_level_off_grid_pending'
+               ) | float(0) }}
+          alarm_off_grid: >
+            {{ states(
+                 'input_number.battery_min_charge_alarm_level_off_grid_pending'
+               ) | float(0) }}
+
+      # Update the permanent on-grid values.
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.battery_min_charge_warning_level
+        data:
+          value: "{{ warning }}"
+
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.battery_min_charge_alarm_level
+        data:
+          value: "{{ alarm }}"
+
+      # Update the permanent off-grid values.
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.battery_min_charge_warning_level_off_grid
+        data:
+          value: "{{ warning_off_grid }}"
+
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.battery_min_charge_alarm_level_off_grid
+        data:
+          value: "{{ alarm_off_grid }}"
+
+      # Reload the saved values into the sliders.
+      - action: script.battery_min_charge_levels_cancel
+
+
+automation:
+  - alias: Battery minimum charge levels - Constrain pending values
+    id: battery_min_charge_levels_constrain_pending_values
+    mode: queued
+    max: 10
+
+    triggers:
+      - trigger: state
+        entity_id: input_number.battery_min_charge_warning_level_pending
+        id: warning
+
+      - trigger: state
+        entity_id: input_number.battery_min_charge_alarm_level_pending
+        id: alarm
+
+      - trigger: state
+        entity_id: input_number.battery_min_charge_warning_level_off_grid_pending
+        id: warning_off_grid
+
+      - trigger: state
+        entity_id: input_number.battery_min_charge_alarm_level_off_grid_pending
+        id: alarm_off_grid
+
+    conditions:
+      - condition: state
+        entity_id: input_boolean.battery_min_charge_levels_loading
+        state: "off"
+
+    actions:
+      - choose:
+          # Alarm raised above warning: raise warning to match.
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ trigger.id == 'alarm'
+                     and states(
+                       'input_number.battery_min_charge_alarm_level_pending'
+                     ) | float(0)
+                     > states(
+                       'input_number.battery_min_charge_warning_level_pending'
+                     ) | float(0) }}
+            sequence:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.battery_min_charge_warning_level_pending
+                data:
+                  value: >
+                    {{ states(
+                         'input_number.battery_min_charge_alarm_level_pending'
+                       ) | float(0) }}
+
+          # Warning lowered below alarm: lower alarm to match.
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ trigger.id == 'warning'
+                     and states(
+                       'input_number.battery_min_charge_warning_level_pending'
+                     ) | float(0)
+                     < states(
+                       'input_number.battery_min_charge_alarm_level_pending'
+                     ) | float(0) }}
+            sequence:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.battery_min_charge_alarm_level_pending
+                data:
+                  value: >
+                    {{ states(
+                         'input_number.battery_min_charge_warning_level_pending'
+                       ) | float(0) }}
+
+          # Off-grid alarm raised above warning: raise warning to match.
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ trigger.id == 'alarm_off_grid'
+                     and states(
+                       'input_number.battery_min_charge_alarm_level_off_grid_pending'
+                     ) | float(0)
+                     > states(
+                       'input_number.battery_min_charge_warning_level_off_grid_pending'
+                     ) | float(0) }}
+            sequence:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.battery_min_charge_warning_level_off_grid_pending
+                data:
+                  value: >
+                    {{ states(
+                         'input_number.battery_min_charge_alarm_level_off_grid_pending'
+                       ) | float(0) }}
+
+          # Off-grid warning lowered below alarm: lower alarm to match.
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ trigger.id == 'warning_off_grid'
+                     and states(
+                       'input_number.battery_min_charge_warning_level_off_grid_pending'
+                     ) | float(0)
+                     < states(
+                       'input_number.battery_min_charge_alarm_level_off_grid_pending'
+                     ) | float(0) }}
+            sequence:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.battery_min_charge_alarm_level_off_grid_pending
+                data:
+                  value: >
+                    {{ states(
+                         'input_number.battery_min_charge_warning_level_off_grid_pending'
+                       ) | float(0) }}
+
+
+  # Discard any unfinished edit after Home Assistant restarts.
+  - alias: Battery minimum charge levels - Initialise pending values
+    id: battery_min_charge_levels_initialise_pending_values
+
+    triggers:
+      - trigger: homeassistant
+        event: start
+
+    actions:
+      - action: script.battery_min_charge_levels_cancel
