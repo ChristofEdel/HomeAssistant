@@ -102,7 +102,7 @@ template:
         icon: mdi:battery-sync
         availability: >
           {{
-            has_value('victron_gx_dc_battery_charge')
+            has_value('sensor.victron_gx_dc_battery_charge')
             and has_value('sensor.victron_multiplus_ii_grid_lost_alarm')
           }}
         state: >
@@ -140,14 +140,10 @@ script:
 
       # Local variables: target values taken from the states / inputs
       - variables:
-          desired_mode: "{{ states('sensor.battery_control_mode') }}"
-          prevent_discharging: >
-            {{
-              is_state(
-                'sensor.battery_control_prevent_discharging',
-                'on'
-              )
-            }}
+          desired_mode:        "{{ states('sensor.battery_control_mode') }}"
+          battery_charge:      "{{ states('sensor.victron_gx_dc_battery_charge') | float(0) }}"
+          charge_target:       "{{ states('sensor.battery_control_charge_target') | float(0) }}
+          prevent_discharging: "{{ is_state('sensor.battery_control_prevent_discharging', 'on') }}"
 
       # Pre-entry checks: ensure that the variables are initialised
       # and the required Victron controls are available.
@@ -163,9 +159,9 @@ script:
             and states(max_discharge_power_entity) | is_number
           }}
 
-      # Apply the charging mode.
+      # Apply the charging mode, taking into account the prevent_discharging settings.
       - choose:
-          # No grid: everything back to normal
+          # No grid: disable forced charging and allow normal discharge.
           - conditions:
               - condition: template
                 value_template: "{{ desired_mode == 'no_grid' }}"
@@ -180,22 +176,35 @@ script:
                 data:
                   value: -1
 
-          # At or above the charge limit: prevent charging.
+              - action: number.set_value
+                target:
+                  entity_id: "{{ max_discharge_power_entity }}"
+                data:
+                  value: -1
+
+          # At or above the charge limit: prevent charging. 
+          # Discharging is as per the prevent_discharging setting.
           - conditions:
               - condition: template
                 value_template: "{{ desired_mode == 'charge_blocked' }}"
             sequence:
-              - action: switch.turn_off
-                target:
-                  entity_id: "{{ force_charge_entity }}"
-
               - action: number.set_value
                 target:
                   entity_id: "{{ max_charge_current_entity }}"
                 data:
                   value: 0
 
-          # Below the charge target: charge at maximum.
+              - action: number.set_value
+                target:
+                  entity_id: "{{ max_discharge_power_entity }}"
+                data:
+                  value: "{{ 0 if prevent_discharging else -1 }}"
+
+              - action: switch.turn_off
+                target:
+                  entity_id: "{{ force_charge_entity }}"
+
+          # Below the charge target: charge at maximum and prevent discharging.
           - conditions:
               - condition: template
                 value_template: "{{ desired_mode == 'force_charging' }}"
@@ -206,49 +215,50 @@ script:
                 data:
                   value: -1
 
-              - action: switch.turn_on
-                target:
-                  entity_id: "{{ force_charge_entity }}"
-
-          # Between target and limit: normal ESS behaviour.
-          - conditions:
-              - condition: template
-                value_template: "{{ desired_mode == 'standard' }}"
-            sequence:
-              - action: switch.turn_off
-                target:
-                  entity_id: "{{ force_charge_entity }}"
-
-              - action: number.set_value
-                target:
-                  entity_id: "{{ max_charge_current_entity }}"
-                data:
-                  value: -1
-
-        default:
-          # Unknown mode: stop without changing discharge control.
-          - stop: >
-              Battery control mode is invalid or unavailable:
-              {{ desired_mode }}
-
-      # Discharge prevention operates independently of charging mode.
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: "{{ prevent_discharging and desired_mode != 'no_grid' }}"
-            sequence:
               - action: number.set_value
                 target:
                   entity_id: "{{ max_discharge_power_entity }}"
                 data:
                   value: 0
 
+              - if:
+                  - condition: template
+                    value_template: "{{ battery_charge < charge_target }}"
+                then:
+                  - action: switch.turn_on
+                    target:
+                      entity_id: "{{ force_charge_entity }}"
+                else:
+                  - action: switch.turn_off
+                    target:
+                      entity_id: "{{ force_charge_entity }}"
+
+          # Between target and limit: normal ESS charging behaviour.
+          # Discharging is as per the prevent_discharging setting.
+          - conditions:
+              - condition: template
+                value_template: "{{ desired_mode == 'standard' }}"
+            sequence:
+              - action: number.set_value
+                target:
+                  entity_id: "{{ max_charge_current_entity }}"
+                data:
+                  value: -1
+
+              - action: number.set_value
+                target:
+                  entity_id: "{{ max_discharge_power_entity }}"
+                data:
+                  value: "{{ 0 if prevent_discharging else -1 }}"
+
+              - action: switch.turn_off
+                target:
+                  entity_id: "{{ force_charge_entity }}"
+
         default:
-          - action: number.set_value
-            target:
-              entity_id: "{{ max_discharge_power_entity }}"
-            data:
-              value: -1
+          - stop: >
+              Battery control mode is invalid or unavailable:
+              {{ desired_mode }}
 
 
 automation:
