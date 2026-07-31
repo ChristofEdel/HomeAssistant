@@ -37,6 +37,15 @@ input_number:
     unit_of_measurement: "%"
     icon: mdi:battery-charging
 
+  battery_control_charge_limit_hysteresis:
+    name: Battery control charge limit hysteresis
+    min: 0
+    max: 20
+    step: 1
+    mode: slider
+    unit_of_measurement: "%"
+    icon: mdi:swap-vertical
+
 input_boolean:
   battery_control_prevent_discharging_manual:
     name: Battery control prevent discharging setting
@@ -106,14 +115,16 @@ template:
             and has_value('sensor.victron_multiplus_ii_grid_lost_alarm')
           }}
         state: >
-          {% set no_grid = is_state('sensor.victron_multiplus_ii_grid_lost_alarm', 'alarm') %}
-          {% set charge = states('sensor.victron_gx_dc_battery_charge') | float %}
-          {% set limit  = states('sensor.battery_control_charge_limit') | float(100) %}
-          {% set target = states('sensor.battery_control_charge_target') | float(0) %}
+          {% set no_grid        = is_state('sensor.victron_multiplus_ii_grid_lost_alarm', 'alarm') %}
+          {% set charge         = states('sensor.victron_gx_dc_battery_charge') | float %}
+          {% set limit          = states('sensor.battery_control_charge_limit') | float(100) %}
+          {% set target         = states('sensor.battery_control_charge_target') | float(0) %}
+          {% set hysteresis     = states('input_number.battery_control_charge_limit_hysteresis') | float(5) %}
+          {% set remain_blocked = this.state == 'charge_blocked' and charge > (limit - hysteresis) %}
 
           {% if no_grid %}
             no_grid
-          {% elif charge >= limit and limit < 100 %}
+          {% elif limit < 100 and (charge >= limit or remain_blocked) %}
             charge_blocked
           {% elif charge <= target %}
             force_charging
@@ -123,6 +134,8 @@ template:
         attributes:
           effective_charge_limit: >
             {{ states('sensor.battery_control_charge_limit') | float(100) }}
+          effective_charge_limit_hysteresis: >
+            {{ states('input_number.battery_control_charge_limit_hysteresis') | float(5) }}
           effective_charge_target: >
             {{ states('sensor.battery_control_charge_target') | float(0) }}
 
@@ -142,7 +155,7 @@ script:
       - variables:
           desired_mode:        "{{ states('sensor.battery_control_mode') }}"
           battery_charge:      "{{ states('sensor.victron_gx_dc_battery_charge') | float(0) }}"
-          charge_target:       "{{ states('sensor.battery_control_charge_target') | float(0) }}
+          charge_target:       "{{ states('sensor.battery_control_charge_target') | float(0) }}"
           prevent_discharging: "{{ is_state('sensor.battery_control_prevent_discharging', 'on') }}"
 
       # Pre-entry checks: ensure that the variables are initialised
@@ -291,6 +304,12 @@ automation:
       - action: input_boolean.turn_off
         target:
           entity_id: input_boolean.battery_control_prevent_discharging_manual
+
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.battery_control_charge_limit_hysteresis
+        data:
+          value: 5
 
       - action: input_boolean.turn_on
         target:
