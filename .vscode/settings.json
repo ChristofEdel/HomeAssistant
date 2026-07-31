@@ -1,5 +1,14 @@
 {
   "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
   "python.analysis.autoImportCompletions": true,
-  "python.analysis.typeCheckingMode": "basic"
+  "python.analysis.typeCheckingMode": "basic",
+
+  "explorer.excludeGitIgnore": true,
+
+  "files.exclude": {
+    // ".cache/": true,
+    // ".cloud/": true,
+    // "**/tmp": true,
+    // "**/dist": true
+  }
 }
