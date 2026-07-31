@@ -19,7 +19,7 @@
 # packages/battery_control.yaml
 
 input_number:
-  battery_control_charge_limit:
+  battery_control_charge_limit_manual:
     name: Battery control charge limit setting
     min: 0
     max: 100
@@ -28,7 +28,7 @@ input_number:
     unit_of_measurement: "%"
     icon: mdi:battery-lock
 
-  battery_control_charge_target:
+  battery_control_charge_target_manual:
     name: Battery control charge target setting
     min: 0
     max: 100
@@ -38,8 +38,8 @@ input_number:
     icon: mdi:battery-charging
 
 input_boolean:
-  battery_control_prevent_discharging:
-    name: Battery control prevent discharging
+  battery_control_prevent_discharging_manual:
+    name: Battery control prevent discharging setting
     icon: mdi:battery-lock-outline
 
   # Internal: ensures defaults are only applied once.
@@ -58,12 +58,12 @@ template:
         state_class: measurement
         availability: >
           {{
-            has_value('input_number.battery_control_charge_limit')
+            has_value('input_number.battery_control_charge_limit_manual')
             and
-            (states('input_number.battery_control_charge_limit') | float(100)) < 100
+            (states('input_number.battery_control_charge_limit_manual') | float(100)) < 100
           }}
         state: >
-          {{ states('input_number.battery_control_charge_limit') | float }}
+          {{ states('input_number.battery_control_charge_limit_manual') | float }}
 
       # A sensor that reflects the current battery charge target setting, 
       # (if one applies), and is unavailable if there is no target
@@ -74,12 +74,22 @@ template:
         state_class: measurement
         availability: >
           {{
-            has_value('input_number.battery_control_charge_target')
+            has_value('input_number.battery_control_charge_target_manual')
             and
-            (states('input_number.battery_control_charge_target') | float(0)) > 0
+            (states('input_number.battery_control_charge_target_manual') | float(0)) > 0
           }}
         state: >
-          {{ states('input_number.battery_control_charge_target') | float }}
+          {{ states('input_number.battery_control_charge_target_manual') | float }}
+
+      # A sensor that reflects the current prevent-discharging setting.
+      - name: Battery Control Prevent Discharging
+        unique_id: battery_control_prevent_discharging
+        default_entity_id: sensor.battery_control_prevent_discharging
+        icon: mdi:battery-lock-outline
+        availability: >
+          {{ has_value('input_boolean.battery_control_prevent_discharging_manual') }}
+        state: >
+          {{ states('input_boolean.battery_control_prevent_discharging_manual') }}
 
       # A sensor that reflects the current battery charge mode, 
       #   charge_blocked --> do not charge
@@ -92,31 +102,29 @@ template:
         icon: mdi:battery-sync
         availability: >
           {{
-            has_value('sensor.victron_gx_dc_battery_charge')
+            has_value('victron_gx_dc_battery_charge')
             and has_value('sensor.victron_multiplus_ii_grid_lost_alarm')
-            and has_value('input_number.battery_control_charge_limit')
-            and has_value('input_number.battery_control_charge_target')
           }}
         state: >
           {% set no_grid = is_state('sensor.victron_multiplus_ii_grid_lost_alarm', 'alarm') %}
           {% set charge = states('sensor.victron_gx_dc_battery_charge') | float %}
-          {% set limit  = states('input_number.battery_control_charge_limit') | float(100) %}
-          {% set target = states('input_number.battery_control_charge_target') | float(0) %}
+          {% set limit  = states('sensor.battery_control_charge_limit') | float(100) %}
+          {% set target = states('sensor.battery_control_charge_target') | float(0) %}
 
           {% if no_grid %}
             no_grid
           {% elif charge >= limit and limit < 100 %}
             charge_blocked
-          {% elif charge < target %}
+          {% elif charge <= target %}
             force_charging
           {% else %}
             standard
           {% endif %}
         attributes:
           effective_charge_limit: >
-            {{ states('input_number.battery_control_charge_limit') | float(100) }}
+            {{ states('sensor.battery_control_charge_limit') | float(100) }}
           effective_charge_target: >
-            {{ states('input_number.battery_control_charge_target') | float(0) }}
+            {{ states('sensor.battery_control_charge_target') | float(0) }}
 
 script:
   battery_control_apply:
@@ -136,7 +144,7 @@ script:
           prevent_discharging: >
             {{
               is_state(
-                'input_boolean.battery_control_prevent_discharging',
+                'sensor.battery_control_prevent_discharging',
                 'on'
               )
             }}
@@ -260,19 +268,19 @@ automation:
         
       - action: input_number.set_value
         target:
-          entity_id: input_number.battery_control_charge_limit
+          entity_id: input_number.battery_control_charge_limit_manual
         data:
           value: 100
 
       - action: input_number.set_value
         target:
-          entity_id: input_number.battery_control_charge_target
+          entity_id: input_number.battery_control_charge_target_manual
         data:
           value: 0
 
       - action: input_boolean.turn_off
         target:
-          entity_id: input_boolean.battery_control_prevent_discharging
+          entity_id: input_boolean.battery_control_prevent_discharging_manual
 
       - action: input_boolean.turn_on
         target:
@@ -287,7 +295,7 @@ automation:
       - trigger: state
         entity_id:
           - sensor.battery_control_mode
-          - input_boolean.battery_control_prevent_discharging
+          - sensor.battery_control_prevent_discharging
           - input_boolean.battery_control_initialised
 
       - trigger: time_pattern
