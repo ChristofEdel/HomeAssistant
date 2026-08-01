@@ -62,6 +62,18 @@ mqtt:
       device:
         identifiers: victron_real_time_metrics
 
+  binary_sensor:
+    - name: "Real-Time Victron Off-Grid Alarm"
+      unique_id: victron_real_time_off_grid_alarm
+      default_entity_id: binary_sensor.victron_real_time_off_grid_alarm
+      device_class: problem
+      state_topic: "victron/N/vebus/275/Ac/ActiveIn/Connected"
+      value_template: "{{ value_json.value }}"
+      payload_on: "0"
+      payload_off: "1"
+      device:
+        identifiers: victron_real_time_metrics
+
 
 automation:
   - alias: "Victron MQTT Keep-Alive"
@@ -99,9 +111,9 @@ template:
       state: >
         {{
           (
-            states('sensor.victron_real_time_grid_power') | float
-            + states('sensor.victron_real_time_solar_power') | float
-            - states('sensor.victron_real_time_power_consumption') | float
+            (states('sensor.victron_real_time_grid_power') | float)
+            + (states('sensor.victron_real_time_solar_power') | float)
+            - (states('sensor.victron_real_time_power_consumption') | float)
           ) 
         }}
 
@@ -124,10 +136,10 @@ template:
       state: >
         {{
           (
-            states('sensor.victron_real_time_grid_power') | float
-            + states('sensor.victron_real_time_solar_power') | float
-            - states('sensor.victron_real_time_power_consumption') | float
-            - states('sensor.victron_real_time_battery_power') | float
+            (states('sensor.victron_real_time_grid_power') | float)
+            + (states('sensor.victron_real_time_solar_power') | float)
+            - (states('sensor.victron_real_time_power_consumption') | float)
+            - (states('sensor.victron_real_time_battery_power') | float)
           )
         }}
 
@@ -150,10 +162,10 @@ template:
       state: >
         {{
           (
-            states('sensor.victron_real_time_grid_power') | float
-            + states('sensor.victron_real_time_solar_power') | float
-            - states('sensor.victron_real_time_power_consumption') | float
-            - states('sensor.victron_real_time_battery_power_calculated') | float
+            (states('sensor.victron_real_time_grid_power') | float)
+            + (states('sensor.victron_real_time_solar_power') | float)
+            - (states('sensor.victron_real_time_power_consumption') | float)
+            - (states('sensor.victron_real_time_battery_power_calculated') | float)
           )
         }}
 
@@ -179,7 +191,7 @@ template:
       device_class: power
       state_class: measurement
       state: >
-        {{ max(0, -states('sensor.victron_gx_grid_power_l1') | float(0)) }}
+        {{ max(0, - (states('sensor.victron_gx_grid_power_l1') | float(0))) }}
       availability: >
         {{ has_value('sensor.victron_gx_grid_power_l1') }}
 

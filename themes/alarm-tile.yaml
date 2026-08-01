@@ -9,8 +9,8 @@ alarm-card-styles:
       --secondary-text-color: white;
       --ha-tile-info-primary-font-size: 20px;
       --tile-color: white;
-      --state-icon-color: white;
-      --state-inactive-color: white;
+      --card-mod-icon-color: white;
+      --card-mod-icon-dim: none;
     }
 
     :host(.warning-tile) {
@@ -20,6 +20,6 @@ alarm-card-styles:
       --secondary-text-color: black;
       --ha-tile-info-primary-font-size: 20px;
       --tile-color: black;
-      --state-icon-color: black;
-      --state-inactive-color: black;
+      --card-mod-icon-color: black;
+      --card-mod-icon-dim: none;
     }

@@ -50,7 +50,7 @@ template:
         state: >
           {% set battery = states('sensor.victron_gx_dc_battery_charge') | float(1) %}
           {% set off_grid = is_state(
-            'sensor.victron_multiplus_ii_grid_lost_alarm',
+            'sensor.victron_real_time_off_grid',
             'alarm'
           ) %}
 
@@ -67,12 +67,12 @@ template:
           {% endif %}
         availability: >
           {{ is_number(states('sensor.victron_gx_dc_battery_charge'))
-              and states('sensor.victron_multiplus_ii_grid_lost_alarm')
+              and states('sensor.victron_real_time_off_grid')
                   not in ['unknown', 'unavailable'] }}
         icon: >
           {% set battery = states('sensor.victron_gx_dc_battery_charge') | float(1) %}
           {% set off_grid = is_state(
-            'sensor.victron_multiplus_ii_grid_lost_alarm',
+            'sensor.victron_real_time_off_grid',
             'alarm'
           ) %}
 

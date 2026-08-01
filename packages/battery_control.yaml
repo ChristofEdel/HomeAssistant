@@ -166,11 +166,11 @@ template:
         availability: >
           {{
             has_value('sensor.victron_gx_dc_battery_charge')
-            and has_value('sensor.victron_multiplus_ii_grid_lost_alarm')
+            and has_value('binary_sensor.victron_real_time_off_grid_alarm')
             and has_value('sensor.battery_control_battery_energy')
           }}
         state: >
-          {% set no_grid        = is_state('sensor.victron_multiplus_ii_grid_lost_alarm', 'alarm') %}
+          {% set no_grid        = is_state('binary_sensor.victron_real_time_off_grid_alarm', 'on') %}
           {% set charge         = states('sensor.victron_gx_dc_battery_charge') | float %}
           {% set limit          = states('sensor.battery_control_charge_limit') | float(100) %}
           {% set target         = states('sensor.battery_control_charge_target') | float(0) %}
