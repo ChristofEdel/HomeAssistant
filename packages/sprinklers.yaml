@@ -212,7 +212,7 @@ template:
             'binary_sensor.garden_sprinklers_veggies_station_running',
             'on'
           ) %}
-            {{ states('sensor.garden_sprinklers_flow_rate') | float }}
+            {{ states('sensor.garden_sprinklers_flow_rate') | float(0) or 1 }}
           {% else %}
             0
           {% endif %}
