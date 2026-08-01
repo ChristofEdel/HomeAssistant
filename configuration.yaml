@@ -11,6 +11,12 @@ http:
   trusted_proxies:
     - 172.16.0.0/12
 
+# Condigure push notification to  every push-capable Home Assistant Companion App
+notify:
+  - platform: mobile_app
+    name: all_mobile_apps
+
+# Some Crack for data junkies
 recorder:
   purge_keep_days: 365
 

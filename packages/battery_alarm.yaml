@@ -1,3 +1,6 @@
+# Overall alarm conditions for the battery charge level (sensor.battery_low_alarm)
+# ans push notifications for low and critical battery states
+
 input_number:
   battery_min_charge_warning_level:
     # the level at which the battery low warning will be triggered, as a % of full charge
@@ -50,7 +53,7 @@ template:
         state: >
           {% set battery = states('sensor.victron_gx_dc_battery_charge') | float(1) %}
           {% set off_grid = is_state(
-            'sensor.victron_real_time_off_grid',
+            'binary_sensor.victron_real_time_off_grid_alarm',
             'alarm'
           ) %}
 
@@ -67,12 +70,12 @@ template:
           {% endif %}
         availability: >
           {{ is_number(states('sensor.victron_gx_dc_battery_charge'))
-              and states('sensor.victron_real_time_off_grid')
+              and states('binary_sensor.victron_real_time_off_grid_alarm')
                   not in ['unknown', 'unavailable'] }}
         icon: >
           {% set battery = states('sensor.victron_gx_dc_battery_charge') | float(1) %}
           {% set off_grid = is_state(
-            'sensor.victron_real_time_off_grid',
+            'binary_sensor.victron_real_time_off_grid_alarm',
             'alarm'
           ) %}
 
@@ -87,3 +90,99 @@ template:
           {% else %}
             mdi:battery-check
           {% endif %}
+
+# Push notifications
+#
+#   normal -> warning: "Battery Low" notification
+#   normal -> alarm: "Battery Critical" notification
+#
+# If the system is off grid, the "Battery Critical" notification is sent as a critical notification
+
+automation:
+  - id: battery_low_alarm_notifications
+    alias: Battery low alarm notifications
+    description: Sends battery warning and alarm notifications.
+
+    triggers:
+      - trigger: state
+        entity_id: sensor.battery_low_alarm
+        from: "normal"
+        to: "warning"
+        id: warning
+
+      - trigger: state
+        entity_id: sensor.battery_low_alarm
+        from: "normal"
+        to: "alarm"
+        id: alarm
+
+      - trigger: state
+        entity_id: sensor.battery_low_alarm
+        from: "warning"
+        to: "alarm"
+        id: alarm
+
+    actions:
+      - variables:
+          notification_message: >-
+            {{ 'Battery at '
+               ~ (states('sensor.victron_gx_dc_battery_charge')
+                  | float(0) | round(0) | int)
+               ~ '%'
+               ~ ('\nTarn Lodge is running off-grid.'
+                  if is_state(
+                    'binary_sensor.victron_real_time_off_grid_alarm',
+                    'on'
+                  )
+                  else '') }}
+
+      - choose:
+          # Warning: normal notification
+          - conditions:
+              - condition: trigger
+                id: warning
+            sequence:
+              - action: notify.all_mobile_apps
+                data:
+                  title: "Battery Low"
+                  message: "{{ notification_message }}"
+
+          # Alarm while grid-connected: normal notification
+          - conditions:
+              - condition: trigger
+                id: alarm
+              - condition: state
+                entity_id: binary_sensor.victron_real_time_off_grid_alarm
+                state: "off"
+            sequence:
+              - action: notify.all_mobile_apps
+                data:
+                  title: "Battery Critical"
+                  message: "{{ notification_message }}"
+
+          # Alarm while off-grid: critical notification
+          - conditions:
+              - condition: trigger
+                id: alarm
+              - condition: state
+                entity_id: binary_sensor.victron_real_time_off_grid_alarm
+                state: "on"
+            sequence:
+              - action: notify.all_mobile_apps
+                data:
+                  title: "Battery Critical"
+                  message: "{{ notification_message }}"
+                  data:
+                    # Andriod
+                    ttl: 0
+                    priority: high
+                    channel: alarm_stream
+                    # iOS
+                    push:
+                      sound:
+                        name: default
+                        critical: 1
+                        volume: 1.0
+
+    mode: queued
+    max: 10

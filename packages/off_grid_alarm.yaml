@@ -1,0 +1,53 @@
+# Push notifications sent in case of grod failure and recovery
+
+automation:
+  - id: off_grid_alarm_notifications
+    alias: Off-grid alarm notifications
+    description: Sends a critical alert when grid power is lost and a normal alert when it returns.
+
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.victron_real_time_off_grid_alarm
+        from: "off"
+        to: "on"
+        id: grid_lost
+
+      - trigger: state
+        entity_id: binary_sensor.victron_real_time_off_grid_alarm
+        from: "on"
+        to: "off"
+        id: grid_restored
+
+    actions:
+      - choose:
+          - conditions:
+              - condition: trigger
+                id: grid_lost
+            sequence:
+              - action: notify.all_mobile_apps
+                data:
+                  title: Grid lost
+                  message: Tarn Lodge is running off-grid.
+                  data:
+                    # Android
+                    ttl: 0
+                    priority: high
+                    channel: alarm_stream
+                    # iOS
+                    push:
+                      sound:
+                        name: default
+                        critical: 1
+                        volume: 1.0
+
+          - conditions:
+              - condition: trigger
+                id: grid_restored
+            sequence:
+              - action: notify.all_mobile_apps
+                data:
+                  title: Grid power restored
+                  message: The grid connection has been restored.
+
+    mode: queued
+    max: 10
