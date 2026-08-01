@@ -109,12 +109,18 @@ template:
         state_class: measurement
         availability: >
           {{
-            has_value('input_number.battery_control_charge_limit_manual')
-            and
             (states('input_number.battery_control_charge_limit_manual') | float(100)) < 100
           }}
         state: >
           {{ states('input_number.battery_control_charge_limit_manual') | float }}
+        attributes:
+          reason: >
+            {% set manual = states('input_number.battery_control_charge_limit_manual') | float(100) %}
+            {% if manual < 100 %}
+              Manual
+            {% else %}
+              {{ none }}
+            {% endif %}
 
       # A sensor that reflects the current battery charge target setting, 
       # (if one applies), and is unavailable if there is no target
@@ -149,9 +155,9 @@ template:
             {% elif is_state('binary_sensor.octopus_energy_electricity_19l3390321_1200022336139_off_peak', 'on') %}
               Off-Peak Charge Target
             {% else %}
-              -
+              {{ none }}
             {% endif %}
-            
+
       # A sensor that reflects the current prevent-discharging setting.
       - name: Battery Control Prevent Discharging
         unique_id: battery_control_prevent_discharging
@@ -172,7 +178,7 @@ template:
             {% elif ohme_current > 0 %}
               Ohme Charger
             {% else %}
-              -
+              {{ none }}
             {% endif %}
 
       # A sensor that reflects the current battery charge mode,
