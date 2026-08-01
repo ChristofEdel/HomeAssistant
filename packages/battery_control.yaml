@@ -141,7 +141,17 @@ template:
           {% else %}
             {{ 0 }}
           {% endif %}
-
+        attributes:
+          reason: >
+            {% set manual = states('input_number.battery_control_charge_target_manual') | float(0) %}
+            {% if manual > 0 %}
+              Manual
+            {% elif is_state('binary_sensor.octopus_energy_electricity_19l3390321_1200022336139_off_peak', 'on') %}
+              Off-Peak Charge Target
+            {% else %}
+              -
+            {% endif %}
+            
       # A sensor that reflects the current prevent-discharging setting.
       - name: Battery Control Prevent Discharging
         unique_id: battery_control_prevent_discharging
@@ -150,7 +160,20 @@ template:
         availability: >
           {{ has_value('input_boolean.battery_control_prevent_discharging_manual') }}
         state: >
-          {{ states('input_boolean.battery_control_prevent_discharging_manual') }}
+          {% set manual = is_state('input_boolean.battery_control_prevent_discharging_manual', 'on') %}
+          {% set ohme_current = states('sensor.ohme_home_go_current') | float(0) %}
+          {{ 'on' if manual or ohme_current > 0 else 'off' }}
+        attributes:
+          reason: >
+            {% set manual = is_state('input_boolean.battery_control_prevent_discharging_manual', 'on') %}
+            {% set ohme_current = states('sensor.ohme_home_go_current') | float(0) %}
+            {% if manual %}
+              Manual
+            {% elif ohme_current > 0 %}
+              Ohme Charger
+            {% else %}
+              -
+            {% endif %}
 
       # A sensor that reflects the current battery charge mode,
       #   charge_blocked_pending --> continue normal charging until another
