@@ -46,6 +46,15 @@ input_number:
     unit_of_measurement: "%"
     icon: mdi:battery-charging-10
 
+  battery_control_charge_target_off_peak:
+    name: "Battery control: off-peak charge target"
+    min: 0
+    max: 100
+    step: 1
+    mode: slider
+    unit_of_measurement: "%"
+    icon: mdi:battery-charging-10
+
   battery_control_charge_limit_hysteresis:
     name: "Battery control: charge limit hysteresis"
     min: 0
@@ -116,12 +125,22 @@ template:
         state_class: measurement
         availability: >
           {{
-            has_value('input_number.battery_control_charge_target_manual')
-            and
             (states('input_number.battery_control_charge_target_manual') | float(0)) > 0
+            or
+            (
+              is_state('binary_sensor.octopus_energy_electricity_19l3390321_1200022336139_off_peak', 'on')
+              and (states('input_number.battery_control_charge_target_off_peak') | float(0)) > 0
+            )
           }}
         state: >
-          {{ states('input_number.battery_control_charge_target_manual') | float }}
+          {% set manual = states('input_number.battery_control_charge_target_manual') | float(0) %}
+          {% if manual > 0 %}
+            {{ manual }}
+          {% elif is_state('binary_sensor.octopus_energy_electricity_19l3390321_1200022336139_off_peak', 'on') %}
+            {{ states('input_number.battery_control_charge_target_off_peak') | float }}
+          {% else %}
+            {{ 0 }}
+          {% endif %}
 
       # A sensor that reflects the current prevent-discharging setting.
       - name: Battery Control Prevent Discharging
@@ -374,6 +393,12 @@ automation:
           entity_id: input_number.battery_control_charge_target_default
         data:
           value: 10
+
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.battery_control_charge_target_off_peak
+        data:
+          value: 50
 
       - action: input_boolean.turn_off
         target:
