@@ -185,7 +185,7 @@ template:
       #   charge_blocked_pending --> continue normal charging until another
       #                              x kWh net has entered the battery (x is configurable)
       #   charge_blocked         --> do not charge
-      #   force_charging         --> charge at maximum rate
+      #   force_charging         --> charge to the active target, then hold it
       #   standard               --> (dis-)charge normally (prevent import/export)
       #   no_grid                --> grid is unavailable
       - name: Battery Control Mode
@@ -212,7 +212,7 @@ template:
 
           {% if no_grid %}
             no_grid
-          {% elif pending and (limit >= 100 or charge < target) %}
+          {% elif pending and (limit >= 100 or charge < limit) %}
             standard
           {% elif pending and energy_added < states('input_number.battery_control_charge_limit_additional_energy') | float(0.2) %}
             charge_blocked_pending
@@ -262,6 +262,7 @@ script:
       - variables:
           max_charge_current_entity:  number.victron_gx_ess_max_charge_current
           charge_target_entity:       number.victron_gx_ess_min_soc_limit
+          force_charge_entity:        switch.victron_ess_force_charge
           max_discharge_power_entity: number.victron_gx_ess_max_inverter_power_limit
 
       # Local variables: target values taken from the states / inputs
@@ -283,6 +284,7 @@ script:
           {{
             states(max_charge_current_entity) | is_number
             and states(charge_target_entity) | is_number
+            and states(force_charge_entity) in ['on', 'off']
             and states(max_discharge_power_entity) | is_number
           }}
 
@@ -298,6 +300,10 @@ script:
                   entity_id: "{{ charge_target_entity }}"
                 data:
                   value: "{{ default_charge_target }}"
+
+              - action: switch.turn_off
+                target:
+                  entity_id: "{{ force_charge_entity }}"
 
               - action: number.set_value
                 target:
@@ -329,6 +335,10 @@ script:
                 data:
                   value: "{{ 0 if prevent_discharging else -1 }}"
 
+              - action: switch.turn_off
+                target:
+                  entity_id: "{{ force_charge_entity }}"
+
               - action: number.set_value
                 target:
                   entity_id: "{{ charge_target_entity }}"
@@ -336,6 +346,7 @@ script:
                   value: "{{ default_charge_target }}"
 
           # Below the charge target: charge at maximum and prevent discharging.
+          # At the charge target: prevent discharging only
           - conditions:
               - condition: template
                 value_template: "{{ desired_mode == 'force_charging' }}"
@@ -358,6 +369,18 @@ script:
                 data:
                   value: "{{ charge_target }}"
 
+              - if:
+                  - condition: template
+                    value_template: "{{ battery_charge < charge_target }}"
+                then:
+                  - action: switch.turn_on
+                    target:
+                      entity_id: "{{ force_charge_entity }}"
+                else:
+                  - action: switch.turn_off
+                    target:
+                      entity_id: "{{ force_charge_entity }}"
+
           # Between target and limit, or while accumulating the 0.2 kWh
           # charge-limit overrun: normal ESS charging behaviour.
           # Discharging is as per the prevent_discharging setting.
@@ -377,6 +400,10 @@ script:
                   entity_id: "{{ max_discharge_power_entity }}"
                 data:
                   value: "{{ 0 if prevent_discharging else -1 }}"
+
+              - action: switch.turn_off
+                target:
+                  entity_id: "{{ force_charge_entity }}"
 
               - action: number.set_value
                 target:
@@ -459,6 +486,7 @@ automation:
         entity_id:
           - sensor.battery_control_mode
           - sensor.battery_control_prevent_discharging
+          - sensor.victron_gx_dc_battery_charge
           - input_boolean.battery_control_initialised
 
       - trigger: time_pattern
