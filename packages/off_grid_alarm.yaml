@@ -7,13 +7,13 @@ automation:
 
     triggers:
       - trigger: state
-        entity_id: binary_sensor.victron_real_time_off_grid_alarm
+        entity_id: binary_input.victron_real_time_off_grid_alarm_internal
         from: "off"
         to: "on"
         id: grid_lost
 
       - trigger: state
-        entity_id: binary_sensor.victron_real_time_off_grid_alarm
+        entity_id: binary_sensor.victron_real_time_off_grid_alarm_internal
         from: "on"
         to: "off"
         id: grid_restored

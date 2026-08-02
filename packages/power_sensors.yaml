@@ -62,10 +62,14 @@ mqtt:
       device:
         identifiers: victron_real_time_metrics
 
+    # 5. Real-time off-grid alarm. Internal (hence _raw) because it will report "unknown"
+    #    after a re-start of Home Assistant until the first MQTT message is received. 
+    #    Use the sensor "victron_real_time_off_grid_alarm" for quicker on/off state.
+    #    Use the "input_boolean.victron_real_time_off_grid_alarm_internal" for quicker, pure on/off state.
   binary_sensor:
-    - name: "Real-Time Victron Off-Grid Alarm"
-      unique_id: victron_real_time_off_grid_alarm
-      default_entity_id: binary_sensor.victron_real_time_off_grid_alarm
+    - name: "Real-Time Victron Off-Grid Alarm (raw)"
+      unique_id: victron_real_time_off_grid_alarm_raw
+      default_entity_id: binary_sensor.victron_real_time_off_grid_alarm_raw
       device_class: problem
       state_topic: "victron/N/vebus/275/Ac/ActiveIn/Connected"
       value_template: "{{ value_json.value }}"
@@ -74,6 +78,14 @@ mqtt:
       device:
         identifiers: victron_real_time_metrics
 
+
+input_boolean:
+    # 5b. Real-time off-grid alarm - either "on" (alarm) or "off" (normal).
+    #     If the raw sensor is "unknown" or "unavailable", we keep the previous state.
+    #     This is an internal input set by a trigger to avoid the "unknown" state after
+    #     a restart of Home Assistant until the first MQTT message is received.
+  victron_real_time_off_grid_alarm_internal:
+    name: "Real-Time Victron Off-Grid Alarm"
 
 automation:
   - alias: "Victron MQTT Keep-Alive"
@@ -90,10 +102,52 @@ automation:
           payload: "{}"
     mode: single
 
+  - id: victron_real_time_off_grid_alarm_update
+    alias: "Update Real-Time Victron Off-Grid Alarm"
+    mode: restart
+    triggers:
+      # Anything -> on
+      - trigger: state
+        entity_id: binary_sensor.victron_real_time_off_grid_alarm_raw
+        to: "on"
+        id: "on"
+      # Anything -> off
+      - trigger: state
+        entity_id: binary_sensor.victron_real_time_off_grid_alarm_raw
+        to: "off"
+        id: "off"
+    actions:
+      - choose:
+          - conditions: "{{ trigger.id == 'on' }}"
+            sequence:
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.victron_real_time_off_grid_alarm_internal
+
+          - conditions: "{{ trigger.id == 'off' }}"
+            sequence:
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.victron_real_time_off_grid_alarm_internal
 
 template:
+    # 5c. Real-time off-grid alarm - either "on" (alarm) or "off" (normal).
+    #     If the raw sensor is "unavailable", we keep the previous state.
+    #     NB - it may still be "unavailable" after a restart, but will
+    #     take its proper value more quickly than waiting for the first MQTT message
+    #     to arrive.
+  - binary_sensor:
+    - name: "Real-Time Victron Off-Grid Alarm"
+      unique_id: victron_real_time_off_grid_alarm
+      default_entity_id: binary_sensor.victron_real_time_off_grid_alarm
+      device_class: problem
+      state: >
+        {{ is_state('binary_input.victron_real_time_off_grid_alarm_internal', 'on') }}
+      # This sensor reflects the input_boolean state above so existing
+      # code expecting a sensor did not break
+
   - sensor:
-    # 5. AC-side estimate of battery power
+    # 6. AC-side estimate of battery power
     #    See (3) above - we only have the DC battery power measurement, so we calculate the AC-side battery power as:
     #    battery_power = grid_power + solar_power - consumption_power
     - name: "Real-Time Power To Battery (calculated)"

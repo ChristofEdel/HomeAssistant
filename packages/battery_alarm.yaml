@@ -52,10 +52,7 @@ template:
         default_entity_id: sensor.battery_low_alarm
         state: >
           {% set battery = states('sensor.victron_gx_dc_battery_charge') | float(1) %}
-          {% set off_grid = is_state(
-            'binary_sensor.victron_real_time_off_grid_alarm',
-            'alarm'
-          ) %}
+          {% set off_grid = is_state('binary_input.victron_real_time_off_grid_alarm_internal', 'on') %}
 
           {% if off_grid and battery < states('input_number.battery_min_charge_alarm_level_off_grid') | float(1) %}
             alarm
@@ -69,15 +66,10 @@ template:
             normal
           {% endif %}
         availability: >
-          {{ is_number(states('sensor.victron_gx_dc_battery_charge'))
-              and states('binary_sensor.victron_real_time_off_grid_alarm')
-                  not in ['unknown', 'unavailable'] }}
+          {{ is_number(states('sensor.victron_gx_dc_battery_charge')) }}
         icon: >
           {% set battery = states('sensor.victron_gx_dc_battery_charge') | float(1) %}
-          {% set off_grid = is_state(
-            'binary_sensor.victron_real_time_off_grid_alarm',
-            'alarm'
-          ) %}
+          {% set off_grid = is_state('binary_input.victron_real_time_off_grid_alarm_internal', 'on') %}
 
           {% if off_grid and battery < states('input_number.battery_min_charge_alarm_level_off_grid') | float(1) %}
             mdi:battery-alert
@@ -131,7 +123,7 @@ automation:
                ~ '%'
                ~ ('\nTarn Lodge is running off-grid.'
                   if is_state(
-                    'binary_sensor.victron_real_time_off_grid_alarm',
+                    'binary_input.victron_real_time_off_grid_alarm_internal',
                     'on'
                   )
                   else '') }}
@@ -152,7 +144,7 @@ automation:
               - condition: trigger
                 id: alarm
               - condition: state
-                entity_id: binary_sensor.victron_real_time_off_grid_alarm
+                entity_id: binary_input.victron_real_time_off_grid_alarm_internal
                 state: "off"
             sequence:
               - action: notify.all_mobile_apps
@@ -165,7 +157,7 @@ automation:
               - condition: trigger
                 id: alarm
               - condition: state
-                entity_id: binary_sensor.victron_real_time_off_grid_alarm
+                entity_id: binary_input.victron_real_time_off_grid_alarm_internal
                 state: "on"
             sequence:
               - action: notify.all_mobile_apps
