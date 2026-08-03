@@ -1,9 +1,9 @@
-# Home assitant package: Controller for battery charge / discharge control.
+# Home assistant package: Controller for battery charge / discharge control.
 #
 # Normally, the Inverter is set to charge and discharge the battery so there is zero import or export
 # of power from the grid.
 #
-# This packages allows the user to set 
+# This package allows the user to set 
 #   - a minimum battery charge level, below which the inverter will be forced to charge the battery 
 #     at maximum rate (from all sources including the grid)
 #     This can be used to charge the battery during cheaper tariff periods
@@ -86,7 +86,7 @@ input_boolean:
 sensor:
   # Signed battery energy flow: + for energy charged, - for energy discharging
   # 10 second integration interval is fast enough because the control variable
-  # (batttery charge) changes in minutes (order of magnitude)
+  # (battery charge) changes in minutes (order of magnitude)
   - platform: integration
     source: sensor.victron_real_time_battery_power
     name: Battery Control Battery Energy
@@ -187,7 +187,7 @@ template:
       #
       #   charge_blocked_pending   --> continue normal charging until another
       #                                x kWh net has entered the battery (x is configurable), 
-      #                                this is then folowed by "charge_blocked"
+      #                                this is then followed by "charge_blocked"
       #   charge_blocked           --> do not charge
       #
       #   force_charging           --> charge to the active target. once that target is reached, 
@@ -195,7 +195,7 @@ template:
       #   force_charging_finishing --> continue forced charging until another
       #                                x kWh net has entered the battery (x is configurable)
       #
-      #   no_grid                  --> grid is unavailable, do not try to control chargind or discharging
+      #   no_grid                  --> grid is unavailable, do not try to control charging or discharging
       #
       - name: Battery Control Mode
         unique_id: battery_control_mode
@@ -218,7 +218,7 @@ template:
           {% set energy_added     = energy - start_energy %}
           {% set pending          = this.state == 'charge_blocked_pending' %}
           {% set target_finishing = this.state == 'force_charging_finishing' %}
-          {% set remain_blocked   = this.state == 'charge_blocked' and charge > (limit - hysteresis) %}
+          {% set remain_blocked   = this.state == 'charge_blocked' and charge >= (limit - hysteresis) %}
 
           {% if no_grid %}
             no_grid
