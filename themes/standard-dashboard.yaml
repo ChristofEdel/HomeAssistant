@@ -1,0 +1,21 @@
+#
+# The dashboards in HASS suffer from horribly inconsistent title sizing, for example
+# massive statistics-chart titles smaller than the text in title cards. 
+# This style sheet attempts to make the titles more consistent and readable.
+#
+standard-dashboard:
+  ha-card-header-font-size: var(--ha-font-size-l)               # Makes headers less massive, default is x2 which is disproportionate to the rest of the dashboard 
+  ha-heading-card-title-font-size: var(--ha-font-size-xl)       # Make headings more prominent than the card headers
+  ha-heading-card-title-font-weight: var(--ha-font-weight-bold) # and bold
+
+  # adjust apexchart card headers to match standard card headers
+  card-mod-theme: standard-dashboard
+  card-mod-card: |
+    :host(apexcharts-card) div#header__title {
+      font-size: var(--ha-card-header-font-size) !important;
+      font-weight: var(--ha-card-header-font-weight, var(--ha-font-weight-normal)) !important;
+      color: var(--ha-card-header-color, var(--primary-text-color)) !important;
+    }
+    :host(hui-heading-card) .content {
+      --mdc-icon-size: var(--ha-heading-card-title-font-size, var(--ha-font-size-l));
+    }
