@@ -37,15 +37,6 @@ input_number:
     unit_of_measurement: "%"
     icon: mdi:battery-charging
 
-  battery_control_charge_target_default:
-    name: "Battery control: default charge target"
-    min: 0
-    max: 100
-    step: 1
-    mode: slider
-    unit_of_measurement: "%"
-    icon: mdi:battery-charging-10
-
   battery_control_charge_target_off_peak:
     name: "Battery control: off-peak charge target"
     min: 0
@@ -297,7 +288,6 @@ script:
       # Configuration: Variables that are used to control the Victron system. 
       - variables:
           max_charge_current_entity:  number.victron_gx_ess_max_charge_current
-          charge_target_entity:       number.victron_gx_ess_min_soc_limit
           force_charge_entity:        switch.victron_ess_force_charge
           max_discharge_power_entity: number.victron_gx_ess_max_inverter_power_limit
 
@@ -306,7 +296,6 @@ script:
           desired_mode:          "{{ states('sensor.battery_control_mode') }}"
           battery_charge:        "{{ states('sensor.victron_gx_dc_battery_charge') | float(0) }}"
           charge_target:         "{{ states('sensor.battery_control_charge_target') | float(0) }}"
-          default_charge_target: "{{ states('input_number.battery_control_charge_target_default') | float(10) }}"
           prevent_discharging:   "{{ is_state('sensor.battery_control_prevent_discharging', 'on') }}"
 
       # Pre-entry checks: ensure that the variables are initialised
@@ -319,7 +308,6 @@ script:
         value_template: >
           {{
             states(max_charge_current_entity) | is_number
-            and states(charge_target_entity) | is_number
             and states(force_charge_entity) in ['on', 'off']
             and states(max_discharge_power_entity) | is_number
           }}
@@ -331,12 +319,6 @@ script:
               - condition: template
                 value_template: "{{ desired_mode == 'no_grid' }}"
             sequence:
-              - action: number.set_value
-                target:
-                  entity_id: "{{ charge_target_entity }}"
-                data:
-                  value: "{{ default_charge_target }}"
-
               - action: switch.turn_off
                 target:
                   entity_id: "{{ force_charge_entity }}"
@@ -375,12 +357,6 @@ script:
                 target:
                   entity_id: "{{ force_charge_entity }}"
 
-              - action: number.set_value
-                target:
-                  entity_id: "{{ charge_target_entity }}"
-                data:
-                  value: "{{ default_charge_target }}"
-
           # Below the charge target, or while accumulating the configured
           # charge-target overrun: charge at maximum and prevent discharging.
           - conditions:
@@ -399,12 +375,6 @@ script:
                   entity_id: "{{ max_discharge_power_entity }}"
                 data:
                   value: 0
-
-              - action: number.set_value
-                target:
-                  entity_id: "{{ charge_target_entity }}"
-                data:
-                  value: "{{ charge_target }}"
 
               - if:
                   - condition: template
@@ -443,12 +413,6 @@ script:
                 target:
                   entity_id: "{{ force_charge_entity }}"
 
-              - action: number.set_value
-                target:
-                  entity_id: "{{ charge_target_entity }}"
-                data:
-                  value: "{{ default_charge_target }}"
-
         default:
           - stop: >
               Battery control mode is invalid or unavailable:
@@ -481,12 +445,6 @@ automation:
           entity_id: input_number.battery_control_charge_target_manual
         data:
           value: 0
-
-      - action: input_number.set_value
-        target:
-          entity_id: input_number.battery_control_charge_target_default
-        data:
-          value: 10
 
       - action: input_number.set_value
         target:
