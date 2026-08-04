@@ -1,7 +1,7 @@
 sensor:
   - platform: integration
     source: sensor.opendtu_4b0618_ac_power
-    name: Solar Energy Total
+    name: Solar Energy Total (Hoymiles)
     unique_id: solar_energy_total
     unit_prefix: k
     unit_time: h
@@ -13,7 +13,7 @@ sensor:
 utility_meter:
   solar_production_today:
     source: sensor.solar_energy_total
-    name: Solar Production Today
+    name: Solar Production Today (Hoymiles)
     unique_id: solar_production_today
     cycle: daily
     periodically_resetting: false

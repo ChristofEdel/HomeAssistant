@@ -308,6 +308,24 @@ sensor:
     unit_time: h
     round: 3
 
+  - platform: integration
+    source: sensor.victron_gx_pv_on_output_power_l1
+    name: "Solar Energy Total (Victron)"
+    unique_id: solar_energy_total_victron
+    unit_prefix: k
+    unit_time: h
+    method: trapezoidal
+    round: 3
+    max_sub_interval:
+      minutes: 1
+
+utility_meter:
+  solar_production_today_victron:
+    source: sensor.solar_energy_total_victron
+    name: Solar Production Today (Victron)
+    unique_id: solar_production_today_victron
+    cycle: daily
+    periodically_resetting: false
 
 homeassistant:
   customize:
