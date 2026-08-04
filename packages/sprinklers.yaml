@@ -218,6 +218,51 @@ template:
           {% endif %}
 
 
+# Consolidated lawn flow rate and water total sensors
+      - name: "Garden Sprinklers All Lawns Flow Rate"
+        unique_id: garden_sprinklers_all_lawns_flow_rate
+        device_class: volume_flow_rate
+        state_class: measurement
+        unit_of_measurement: "L/min"
+        availability: >
+          {{
+            is_number(states('sensor.garden_sprinklers_front_lawn_station_flow_rate'))
+            or is_number(states('sensor.garden_sprinklers_lawn_left_1_station_flow_rate'))
+            or is_number(states('sensor.garden_sprinklers_lawn_left_2_station_flow_rate'))
+            or is_number(states('sensor.garden_sprinklers_lawn_mid_station_flow_rate'))
+            or is_number(states('sensor.garden_sprinklers_lawn_right_station_flow_rate'))
+          }}
+        state: >
+          {{
+            states('sensor.garden_sprinklers_front_lawn_station_flow_rate')    | float(0)
+            + states('sensor.garden_sprinklers_lawn_left_1_station_flow_rate') | float(0)
+            + states('sensor.garden_sprinklers_lawn_left_2_station_flow_rate') | float(0)
+            + states('sensor.garden_sprinklers_lawn_mid_station_flow_rate')    | float(0)
+            + states('sensor.garden_sprinklers_lawn_right_station_flow_rate')  | float(0)
+          }}
+
+      - name: "Garden Sprinklers All Lawns Water Total"
+        unique_id: garden_sprinklers_all_lawns_water_total
+        device_class: water
+        state_class: total
+        unit_of_measurement: "L"
+        availability: >
+          {{
+            is_number(states('sensor.garden_sprinklers_front_lawn_station_water_total'))
+            or is_number(states('sensor.garden_sprinklers_lawn_left_1_station_water_total'))
+            or is_number(states('sensor.garden_sprinklers_lawn_left_2_station_water_total'))
+            or is_number(states('sensor.garden_sprinklers_lawn_mid_station_water_total'))
+            or is_number(states('sensor.garden_sprinklers_lawn_right_station_water_total'))
+          }}
+        state: >
+          {{
+            states('sensor.garden_sprinklers_front_lawn_station_water_total')    | float(0)
+            + states('sensor.garden_sprinklers_lawn_left_1_station_water_total') | float(0)
+            + states('sensor.garden_sprinklers_lawn_left_2_station_water_total') | float(0)
+            + states('sensor.garden_sprinklers_lawn_mid_station_water_total')    | float(0)
+            + states('sensor.garden_sprinklers_lawn_right_station_water_total')  | float(0)
+          }}
+
 sensor:
   - platform: integration
     source: sensor.garden_sprinklers_front_lawn_station_flow_rate
@@ -337,5 +382,12 @@ utility_meter:
     name: "Garden Sprinklers Veggies Station Water Daily"
     unique_id: garden_sprinklers_veggies_station_water_daily
     source: sensor.garden_sprinklers_veggies_station_water_total
+    cycle: daily
+    periodically_resetting: false
+
+  garden_sprinklers_all_lawns_water_daily:
+    name: "Garden Sprinklers All Lawns Water Daily"
+    unique_id: garden_sprinklers_all_lawns_water_daily
+    source: sensor.garden_sprinklers_all_lawns_water_total
     cycle: daily
     periodically_resetting: false
