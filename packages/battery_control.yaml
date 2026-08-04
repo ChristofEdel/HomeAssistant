@@ -20,7 +20,7 @@
 
 input_number:
   battery_control_charge_limit_manual:
-    name: "Battery control: charge limit setting"
+    name: "Battery Control: Manual charge limit"
     min: 0
     max: 100
     step: 1
@@ -29,7 +29,7 @@ input_number:
     icon: mdi:battery-lock
 
   battery_control_charge_target_manual:
-    name: "Battery control: charge target setting"
+    name: "Battery Control: Manual charge target"
     min: 0
     max: 100
     step: 1
@@ -38,7 +38,7 @@ input_number:
     icon: mdi:battery-charging
 
   battery_control_charge_target_off_peak:
-    name: "Battery control: off-peak charge target"
+    name: "Battery Control Config: Off-peak charge target"
     min: 0
     max: 100
     step: 1
@@ -47,7 +47,7 @@ input_number:
     icon: mdi:battery-charging-10
 
   battery_control_charge_limit_hysteresis:
-    name: "Battery control: charge limit hysteresis"
+    name: "Battery Control Config: Charge limit hysteresis"
     min: 0
     max: 20
     step: 1
@@ -55,8 +55,8 @@ input_number:
     unit_of_measurement: "%"
     icon: mdi:swap-vertical
 
-  battery_control_charge_limit_additional_energy:
-    name: "Battery control: additional energy added after reaching charge limit"
+  battery_control_charge_limit_top_up:
+    name: "Battery Control Config: Top-up added after reaching charge limit"
     min: 0
     max: 1.0
     step: 0.1
@@ -64,8 +64,8 @@ input_number:
     unit_of_measurement: "kWh"
     icon: mdi:swap-vertical
 
-  battery_control_charge_target_additional_energy:
-    name: "Battery control: additional energy added after reaching charge target"
+  battery_control_charge_target_top_up:
+    name: "Battery Control Config: Top-up added after reaching charge target"
     min: 0
     max: 1.0
     step: 0.1
@@ -75,12 +75,12 @@ input_number:
 
 input_boolean:
   battery_control_prevent_discharging_manual:
-    name: Battery control prevent discharging setting
+    name: "Battery Control: Manual \"prevent discharging\""
     icon: mdi:battery-lock-outline
 
   # Internal: ensures defaults are only applied once.
   battery_control_initialised:
-    name: Battery control initialised
+    name: "Battery Control: Settings Initialised"
     icon: mdi:cog-check
 
 sensor:
@@ -89,7 +89,7 @@ sensor:
   # (battery charge) changes in minutes (order of magnitude)
   - platform: integration
     source: sensor.victron_real_time_battery_power
-    name: Battery Control Battery Energy
+    name: "Battery Control: Total energy charged/discharged"
     unique_id: battery_control_battery_energy
     unit_prefix: k
     unit_time: h
@@ -102,7 +102,7 @@ template:
   - sensor:
       # A sensor that reflects the current battery charge limit setting, 
       # (if one applies), and is unavailable if there is no limit
-      - name: Battery Control Charge Limit
+      - name: "Battery Control: Current charge limit"
         unique_id: battery_control_charge_limit
         default_entity_id: sensor.battery_control_charge_limit
         unit_of_measurement: "%"
@@ -124,7 +124,7 @@ template:
 
       # A sensor that reflects the current battery charge target setting, 
       # (if one applies), and is unavailable if there is no target
-      - name: Battery Control Charge Target
+      - name: "Battery Control: Current charge target"
         unique_id: battery_control_charge_target
         default_entity_id: sensor.battery_control_charge_target
         unit_of_measurement: "%"
@@ -159,7 +159,7 @@ template:
             {% endif %}
 
       # A sensor that reflects the current prevent-discharging setting.
-      - name: Battery Control Prevent Discharging
+      - name: "Battery Control: Current \"prevent discharging\" setting"
         unique_id: battery_control_prevent_discharging
         default_entity_id: sensor.battery_control_prevent_discharging
         icon: mdi:battery-lock-outline
@@ -181,23 +181,42 @@ template:
               {{ none }}
             {% endif %}
 
-      # A sensor that reflects the current battery charge mode:
+      # A sensor that reflects the current battery charge mode.
       #
-      #   standard                 --> (dis-)charge normally (prevent import/export)
+      #   standard       --> (dis-)charge normally (prevent import/export)
+      #   charge_blocked --> do not charge above the current limit, but allow discharging
+      #   force_charging --> force-charge to the active target. once that target is reached, 
+      #                      block discharging to sustain the charge at that level
       #
-      #   charge_blocked_pending   --> continue normal charging until another
-      #                                x kWh net has entered the battery (x is configurable), 
-      #                                this is then followed by "charge_blocked"
-      #   charge_blocked           --> do not charge
+      #   no_grid        --> grid is unavailable; do not control charging or discharging
       #
-      #   force_charging           --> charge to the active target. once that target is reached, 
-      #                                this is followed by "force_charging_finishing"
-      #   force_charging_finishing --> continue forced charging until another
-      #                                x kWh net has entered the battery (x is configurable)
+      #   From State       | Condition                                   | To State
+      #   -----------------+---------------------------------------------+----------------------------
+      #   any state        | grid failure                                | no_grid
+      #   -----------------+---------------------------------------------+----------------------------
+      #   no_grid          | target > 0  and charge <= target            | force_charging
+      #                    | limit < 100 and charge >= limit             | charge_blocked
+      #                    | otherwise                                   | standard
+      #   -----------------+---------------------------------------------+----------------------------
+      #   standard         | target > 0  and charge <= target            | force_charging
+      #                    | limit < 100 and charge >= limit             | charge_blocked
+      #                    | otherwise                                   | remain in standard
+      #   -----------------+---------------------------------------------+----------------------------
+      #   charge_blocked   | target > 0  and charge <= target            | force_charging
+      #                    | charge < (limit - hysteresis)               | standard
+      #                    | limit >= 100                                | standard
+      #                    | otherwise                                   | remain in charge_blocked
+      #   -----------------+---------------------------------------------+----------------------------
+      #   force_charging   | target > 0  and charge > target             | standard
+      #                    | target <= 0                                 | standard
+      #                    | otherwise                                   | remain force_charging
       #
-      #   no_grid                  --> grid is unavailable, do not try to control charging or discharging
+      #   The sequence matters, achieving the charge target takes precedence over the charge limit.
       #
-      - name: Battery Control Mode
+      #   when entering the state "charge_blocked" or "force_charging", charging should continue until
+      #   battery_control_charge_[xxxxx]_top_up (in kWh) has been added
+      #
+      - name: "Battery Control - Current mode"
         unique_id: battery_control_mode
         default_entity_id: sensor.battery_control_mode
         icon: mdi:battery-sync
@@ -208,80 +227,167 @@ template:
             and has_value('sensor.battery_control_battery_energy')
           }}
         state: >
-          {% set no_grid          = is_state('binary_sensor.victron_real_time_off_grid_alarm', 'on') %}
-          {% set charge           = states('sensor.victron_gx_dc_battery_charge') | float %}
-          {% set limit            = states('sensor.battery_control_charge_limit') | float(100) %}
-          {% set target           = states('sensor.battery_control_charge_target') | float(0) %}
-          {% set hysteresis       = states('input_number.battery_control_charge_limit_hysteresis') | float(5) %}
-          {% set energy           = states('sensor.battery_control_battery_energy') | float %}
-          {% set start_energy     = this.attributes.get('charge_overrun_start_energy', energy) | float(energy) %}
-          {% set energy_added     = energy - start_energy %}
-          {% set pending          = this.state == 'charge_blocked_pending' %}
-          {% set target_finishing = this.state == 'force_charging_finishing' %}
-          {% set remain_blocked   = this.state == 'charge_blocked' and charge >= (limit - hysteresis) %}
+          {% set previous = this.state %}
+          {% set charge = states('sensor.victron_gx_dc_battery_charge') | float %}
+          {% set limit = states('sensor.battery_control_charge_limit') | float(100) %}
+          {% set target = states('sensor.battery_control_charge_target') | float(0) %}
+          {% set hysteresis = states('input_number.battery_control_charge_limit_hysteresis') | float(5) %}
 
-          {% if no_grid %}
+          {% if is_state('binary_sensor.victron_real_time_off_grid_alarm', 'on') %}
             no_grid
-          {% elif pending and (limit >= 100 or charge < limit) %}
-            standard
-          {% elif pending and energy_added < states('input_number.battery_control_charge_limit_additional_energy') | float(0.2) %}
-            charge_blocked_pending
-          {% elif pending %}
-            charge_blocked
-          {% elif limit < 100 and remain_blocked %}
-            charge_blocked
-          {% elif limit < 100 and charge >= limit %}
-            charge_blocked_pending
-          {% elif target_finishing and target <= 0 %}
-            standard
-          {% elif target_finishing and charge < target %}
-            force_charging
-          {% elif target_finishing and energy_added < states('input_number.battery_control_charge_target_additional_energy') | float(0.2) %}
-            force_charging_finishing
-          {% elif target_finishing %}
-            standard
-          {% elif target > 0 and charge < target %}
-            force_charging
-          {% elif target > 0 and this.state == 'force_charging' and charge >= target %}
-            force_charging_finishing
+
+          {% elif previous == 'charge_blocked' %}
+            {% if target > 0 and charge <= target %}
+              force_charging
+            {% elif limit >= 100 or charge < (limit - hysteresis) %}
+              standard
+            {% else %}
+              charge_blocked
+            {% endif %}
+
+          {% elif previous == 'force_charging' %}
+            {% if target > 0 and charge > target %}
+              standard
+            {% elif target <= 0 %}
+              standard
+            {% else %}
+              force_charging
+            {% endif %}
+
           {% else %}
-            standard
+            {# Covers standard, no_grid after grid restoration, and startup. #}
+            {% if target > 0 and charge <= target %}
+              force_charging
+            {% elif limit < 100 and charge >= limit %}
+              charge_blocked
+            {% else %}
+              standard
+            {% endif %}
           {% endif %}
         attributes:
-          effective_charge_limit: >
+          battery_charge: >
+            {{ states('sensor.victron_gx_dc_battery_charge') | int(0) }}
+          active_charge_limit: >
             {{ states('sensor.battery_control_charge_limit') | float(100) }}
-          effective_charge_limit_hysteresis: >
+          active_charge_limit_hysteresis: >
             {{ states('input_number.battery_control_charge_limit_hysteresis') | float(5) }}
-          effective_charge_target: >
+          active_charge_target: >
             {{ states('sensor.battery_control_charge_target') | float(0) }}
-          charge_overrun_start_energy: >
-            {% set energy = states('sensor.battery_control_battery_energy') | float(0) %}
-            {% set charge = states('sensor.victron_gx_dc_battery_charge') | float(0) %}
-            {% set limit = states('sensor.battery_control_charge_limit') | float(100) %}
-            {% set entering_limit_overrun =
-              limit < 100
-              and charge >= limit
-              and this.state not in ['charge_blocked_pending', 'charge_blocked']
-            %}
-            {% if entering_limit_overrun %}
-              {{ energy }}
-            {% elif this.state in ['charge_blocked_pending', 'charge_blocked', 'force_charging_finishing'] %}
-              {{ this.attributes.get('charge_overrun_start_energy', energy) | float(energy) }}
-            {% else %}
-              {{ energy }}
-            {% endif %}
-          charge_overrun_energy_added: >
-            {% set energy = states('sensor.battery_control_battery_energy') | float(0) %}
-            {% set start = this.attributes.get('charge_overrun_start_energy', energy) | float(energy) %}
-            {% if this.state in ['charge_blocked_pending', 'charge_blocked', 'force_charging_finishing'] %}
-              {{ (energy - start) | round(4) }}
-            {% else %}
-              0
-            {% endif %}
+
+
+  # Capture the integrated battery-energy counter whenever the control mode
+  # changes to charge-blocked or force_charging. 
+  - sensor:
+      - name: "Battery Control: Top-up start energy"
+        unique_id: battery_control_charge_top_up_start_energy
+        default_entity_id: sensor.battery_control_charge_top_up_start_energy
+        unit_of_measurement: "kWh"
+
+        # Triggered when the battery control mode changes.
+        # Only valid when entering charge_blocked from below
+        # or force_charging from below; suppressed if the mode was entered 
+        # while battery charge was falling.
+        availability: >
+          {% set old_charge =
+            trigger.from_state.attributes.get('battery_charge')
+            if trigger.from_state is not none else none
+          %}
+          {% set new_charge =
+            trigger.to_state.attributes.get('battery_charge')
+            if trigger.to_state is not none else none
+          %}
+          {% set entered_from_below =
+            old_charge | is_number
+            and new_charge | is_number
+            and (new_charge | float) > (old_charge | float)
+          %}
+
+          {{
+            trigger.id in ['charge_blocked', 'force_charging']
+            and entered_from_below
+          }}
+
+        # When triggered, save the current energy.
+        state: >
+          {{ states('sensor.battery_control_battery_energy') | float(0) }}
+
+        attributes:
+          mode: "{{ trigger.id }}"
+
+    triggers:
+      - trigger: state
+        entity_id: sensor.battery_control_mode
+        to: "standard"
+        id: standard
+
+      - trigger: state
+        entity_id: sensor.battery_control_mode
+        to: "charge_blocked"
+        id: charge_blocked
+
+      - trigger: state
+        entity_id: sensor.battery_control_mode
+        to: "force_charging"
+        id: force_charging
+
+      - trigger: state
+        entity_id: sensor.battery_control_mode
+        to: "no_grid"
+        id: no_grid
+
+  - sensor:
+      # Net battery energy added since the current charge_blocked or
+      # force_charging mode was entered
+      - name: "Battery Control: Top-up energy added"
+        unique_id: battery_control_charge_top_up_energy_added
+        default_entity_id: sensor.battery_control_charge_top_up_energy_added
+        unit_of_measurement: "kWh"
+
+        # Only valid when the mode is charge_blocked or force_charging
+        # (indirectly via the start energy sensor)
+        availability: >
+          {{ has_value('sensor.battery_control_charge_top_up_start_energy')
+            and has_value('sensor.battery_control_battery_energy') }}
+
+        state: >
+          {% set start_energy =
+            states('sensor.battery_control_charge_top_up_start_energy') | float(0)
+          %}
+          {% set current_energy =
+            states('sensor.battery_control_battery_energy') | float(0)
+          %}
+
+          {{ max(0, current_energy - start_energy) | round(4) }}
+
+  - binary_sensor:
+      # Indicates that the minimum continued-charging energy associated with
+      # the current mode entry has not yet been added.
+      - name: "Battery Control: Top-up required"
+        unique_id: battery_control_charge_top_up_required
+        default_entity_id: binary_sensor.battery_control_charge_top_up_required
+
+        availability: >
+          {{ has_value('sensor.battery_control_charge_top_up_start_energy')
+            and has_value('sensor.battery_control_battery_energy') }}
+
+        state: >
+          {% set mode = states('sensor.battery_control_mode') %}
+          {% set energy_added =
+            states('sensor.battery_control_charge_top_up_energy_added') | float(0)
+          %}
+          {% set required_energy =
+            states(
+              'input_number.battery_control_charge_limit_top_up'
+              if mode == 'charge_blocked'
+              else 'input_number.battery_control_charge_target_top_up'
+            ) | float(0)
+          %}
+
+          {{ required_energy > 0 and energy_added < required_energy }}
 
 script:
   battery_control_apply:
-    alias: Battery control - apply Victron settings
+    alias: "Battery Control: Apply Control Settings to Victron"
     mode: restart
 
     sequence:
@@ -296,6 +402,7 @@ script:
           desired_mode:          "{{ states('sensor.battery_control_mode') }}"
           battery_charge:        "{{ states('sensor.victron_gx_dc_battery_charge') | float(0) }}"
           charge_target:         "{{ states('sensor.battery_control_charge_target') | float(0) }}"
+          top_up_required:       "{{ is_state('binary_sensor.battery_control_charge_top_up_required', 'on') }}"
           prevent_discharging:   "{{ is_state('sensor.battery_control_prevent_discharging', 'on') }}"
 
       # Pre-entry checks: ensure that the variables are initialised
@@ -335,8 +442,10 @@ script:
                 data:
                   value: -1
 
-          # At or above the charge limit: prevent charging. 
-          # Discharging is as per the prevent_discharging setting.
+          # state "charge_blocked":
+          # retain normal ESS charging until the required top-up energy (if any)
+          # has been added, then prevent further charging. 
+          # Discharging follows the overall prevent_discharging setting
           - conditions:
               - condition: template
                 value_template: "{{ desired_mode == 'charge_blocked' }}"
@@ -345,7 +454,7 @@ script:
                 target:
                   entity_id: "{{ max_charge_current_entity }}"
                 data:
-                  value: 0
+                  value: "{{ -1 if top_up_required else 0 }}"
 
               - action: number.set_value
                 target:
@@ -357,12 +466,14 @@ script:
                 target:
                   entity_id: "{{ force_charge_entity }}"
 
-          # Below the charge target, or while accumulating the configured
-          # charge-target overrun: charge at maximum and prevent discharging.
+          # state "force_charging":
+          # Force inverter to charge and prevent discharging until the
+          # target is reached; at the target continue until th requried
+          # top-up energy has been added, then stop forced charging
+          # discharging is always prevented while in this mode.
           - conditions:
               - condition: template
-                value_template: >
-                  {{ desired_mode in ['force_charging', 'force_charging_finishing'] }}
+                value_template: "{{ desired_mode == 'force_charging' }}"
             sequence:
               - action: number.set_value
                 target:
@@ -379,7 +490,7 @@ script:
               - if:
                   - condition: template
                     value_template: >
-                      {{ desired_mode == 'force_charging_finishing' or battery_charge < charge_target }}
+                      {{ battery_charge < charge_target or top_up_required }}
                 then:
                   - action: switch.turn_on
                     target:
@@ -389,13 +500,12 @@ script:
                     target:
                       entity_id: "{{ force_charge_entity }}"
 
-          # Between target and limit, or while accumulating the configured
-          # charge-limit overrun: normal ESS charging behaviour.
+          # state "standard":
+          # normal ESS charging behaviour.
           # Discharging is as per the prevent_discharging setting.
           - conditions:
               - condition: template
-                value_template: >
-                  {{ desired_mode in ['standard', 'charge_blocked_pending'] }}
+                value_template: "{{ desired_mode == 'standard' }}"
             sequence:
               - action: number.set_value
                 target:
@@ -422,7 +532,7 @@ script:
 automation:
   # Initialise the battery control settings to defaults on first startup
   - id: battery_control_initialise
-    alias: Battery control - initialise defaults
+    alias: "Battery Control: Initialise defaults"
     mode: single
 
     triggers:
@@ -464,13 +574,13 @@ automation:
 
       - action: input_number.set_value
         target:
-          entity_id: input_number.battery_control_charge_limit_additional_energy
+          entity_id: input_number.battery_control_charge_limit_top_up
         data:
           value: 0.2
 
       - action: input_number.set_value
         target:
-          entity_id: input_number.battery_control_charge_target_additional_energy
+          entity_id: input_number.battery_control_charge_target_top_up
         data:
           value: 0.2
 
@@ -480,15 +590,17 @@ automation:
 
 
   - id: battery_control_apply_to_victron
-    alias: Battery Control - Apply Control Settings to Victron
+    alias: "Battery Control: Apply Control Settings to Victron"
     mode: restart
 
     triggers:
       - trigger: state
+        to: ~
         entity_id:
           - sensor.battery_control_mode
           - sensor.battery_control_prevent_discharging
           - sensor.victron_gx_dc_battery_charge
+          - binary_sensor.battery_control_charge_top_up_required
           - input_boolean.battery_control_initialised
 
       - trigger: time_pattern
