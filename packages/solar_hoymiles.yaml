@@ -17,3 +17,16 @@ utility_meter:
     unique_id: solar_production_today
     cycle: daily
     periodically_resetting: false
+
+template:
+  - sensor:
+      - name: "Dynamic Power Limiter Total Upper Power Limit"
+        unique_id: dynamic_power_limiter_total_upper_power_limit_sensor
+        default_entity_id: sensor.dynamic_power_limiter_total_upper_power_limit
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        state: >
+          {{ states('number.dynamic_power_limiter_total_upper_power_limit') | float }}
+        availability: >
+          {{ is_number(states('number.dynamic_power_limiter_total_upper_power_limit')) }}
