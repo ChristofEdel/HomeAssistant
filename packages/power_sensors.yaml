@@ -142,7 +142,7 @@ template:
       default_entity_id: binary_sensor.victron_real_time_off_grid_alarm
       device_class: problem
       state: >
-        {{ is_state('binary_input.victron_real_time_off_grid_alarm_internal', 'on') }}
+        {{ is_state('input_boolean.victron_real_time_off_grid_alarm_internal', 'on') }}
       # This sensor reflects the input_boolean state above so existing
       # code expecting a sensor did not break
 
@@ -249,6 +249,28 @@ template:
       availability: >
         {{ has_value('sensor.victron_gx_grid_power_l1') }}
 
+    - name: "Battery Power - Charging"
+      unique_id: victron_gx_dc_battery_power_charging
+      default_entity_id: sensor.victron_gx_dc_battery_power_charging
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      state: >
+        {{ max(0, states('sensor.victron_gx_dc_battery_power') | float(0)) }}
+      availability: >
+        {{ has_value('sensor.victron_gx_dc_battery_power') }}
+
+    - name: "Battery Power - Discharging"
+      unique_id: victron_gx_dc_battery_power_discharging
+      default_entity_id: sensor.victron_gx_dc_battery_power_discharging
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      state: >
+        {{ max(0, -(states('sensor.victron_gx_dc_battery_power') | float(0))) }}
+      availability: >
+        {{ has_value('sensor.victron_gx_dc_battery_power') }}
+
 sensor:
   - platform: integration
     source: sensor.victron_gx_grid_power_l1_import
@@ -268,11 +290,34 @@ sensor:
     unit_time: h
     round: 3
 
+  - platform: integration
+    source: sensor.victron_gx_dc_battery_power_charging
+    name: "Battery Energy - Charged"
+    unique_id: battery_energy_charged
+    method: left
+    unit_prefix: k
+    unit_time: h
+    round: 3
+
+  - platform: integration
+    source: sensor.victron_gx_dc_battery_power_discharging
+    name: "Battery Energy - Discharged"
+    unique_id: battery_energy_discharged
+    method: left
+    unit_prefix: k
+    unit_time: h
+    round: 3
+
+
 homeassistant:
   customize:
     sensor.grid_energy_import:
       state_class: total_increasing
     sensor.grid_energy_export:
+      state_class: total_increasing
+    sensor.battery_energy_charged:
+      state_class: total_increasing
+    sensor.battery_energy_discharged:
       state_class: total_increasing
 
 
