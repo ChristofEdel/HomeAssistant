@@ -213,8 +213,8 @@ template:
       #
       #   The sequence matters, achieving the charge target takes precedence over the charge limit.
       #
-      #   when entering the state "charge_blocked" or "force_charging", charging should continue until
-      #   battery_control_charge_[xxxxx]_top_up (in kWh) has been added
+      #   After entering charge_blocked from below, or after reaching a force-charging target from
+      #   below, charging continues until the configured top-up energy has been added.
       #
       - name: "Battery Control - Current mode"
         unique_id: battery_control_mode
@@ -275,115 +275,165 @@ template:
             {{ states('sensor.battery_control_charge_target') | float(0) }}
 
 
-  # Capture the integrated battery-energy counter whenever the control mode
-  # changes to charge-blocked or force_charging. 
-  - sensor:
-      - name: "Battery Control: Top-up start energy"
-        unique_id: battery_control_charge_top_up_start_energy
-        default_entity_id: sensor.battery_control_charge_top_up_start_energy
-        unit_of_measurement: "kWh"
-
-        # Triggered when the battery control mode changes.
-        # Only valid when entering charge_blocked from below
-        # or force_charging from below; suppressed if the mode was entered 
-        # while battery charge was falling.
-        availability: >
-          {% set old_charge =
-            trigger.from_state.attributes.get('battery_charge')
-            if trigger.from_state is not none else none
-          %}
-          {% set new_charge =
-            trigger.to_state.attributes.get('battery_charge')
-            if trigger.to_state is not none else none
-          %}
-          {% set entered_from_below =
-            old_charge | is_number
-            and new_charge | is_number
-            and (new_charge | float) > (old_charge | float)
-          %}
-
-          {{
-            trigger.id in ['charge_blocked', 'force_charging']
-            and entered_from_below
-          }}
-
-        # When triggered, save the current energy.
-        state: >
-          {{ states('sensor.battery_control_battery_energy') | float(0) }}
-
-        attributes:
-          mode: "{{ trigger.id }}"
-
-    triggers:
-      - trigger: state
-        entity_id: sensor.battery_control_mode
-        to: "standard"
-        id: standard
-
-      - trigger: state
-        entity_id: sensor.battery_control_mode
-        to: "charge_blocked"
-        id: charge_blocked
-
-      - trigger: state
-        entity_id: sensor.battery_control_mode
-        to: "force_charging"
-        id: force_charging
-
-      - trigger: state
-        entity_id: sensor.battery_control_mode
-        to: "no_grid"
-        id: no_grid
-
-  - sensor:
-      # Net battery energy added since the current charge_blocked or
-      # force_charging mode was entered
-      - name: "Battery Control: Top-up energy added"
-        unique_id: battery_control_charge_top_up_energy_added
-        default_entity_id: sensor.battery_control_charge_top_up_energy_added
-        unit_of_measurement: "kWh"
-
-        # Only valid when the mode is charge_blocked or force_charging
-        # (indirectly via the start energy sensor)
-        availability: >
-          {{ has_value('sensor.battery_control_charge_top_up_start_energy')
-            and has_value('sensor.battery_control_battery_energy') }}
-
-        state: >
-          {% set start_energy =
-            states('sensor.battery_control_charge_top_up_start_energy') | float(0)
-          %}
-          {% set current_energy =
-            states('sensor.battery_control_battery_energy') | float(0)
-          %}
-
-          {{ max(0, current_energy - start_energy) | round(4) }}
-
+  # Stateful latch indicating that an additional amount of charging energy
+  # is required after the charge limit or charge target is reached.
   - binary_sensor:
-      # Indicates that the minimum continued-charging energy associated with
-      # the current mode entry has not yet been added.
       - name: "Battery Control: Top-up required"
         unique_id: battery_control_charge_top_up_required
         default_entity_id: binary_sensor.battery_control_charge_top_up_required
+        state: >
+          {{ trigger.id in ['charge_blocked_entered', 'charge_target_reached'] }}
+          # 
+          # The "condition" prevents this from being executed unless the top-up is actually required, 
+          # or unless the state is being reset to off after the top-up has finished
+          #
+          # Look there for the actual top-up requirement logic.
 
-        availability: >
-          {{ has_value('sensor.battery_control_charge_top_up_start_energy')
-            and has_value('sensor.battery_control_battery_energy') }}
+    triggers:
+      # Start a limit top-up only when the mode actually enters charge_blocked.
+      - trigger: state
+        entity_id: sensor.battery_control_mode
+        to: "charge_blocked"
+        id: charge_blocked_entered
+
+      # A state trigger cannot compare the old and new numeric values itself;
+      # the rising-to-target test is therefore performed in conditions below.
+      - trigger: state
+        entity_id: sensor.victron_gx_dc_battery_charge
+        to: null  # Any state change is a trigger
+        id: charge_target_reached
+
+      # The remaining-energy sensor is rounded to four decimal places and
+      # floored at zero, so this threshold matches zero only.
+      - trigger: numeric_state
+        entity_id: sensor.battery_control_charge_top_up_energy_remaining
+        below: 0.0001
+        id: top_up_finished
+
+      # Cancel a top-up when leaving either mode in which it is valid.
+      - trigger: state
+        entity_id: sensor.battery_control_mode
+        from:
+          - "charge_blocked"
+          - "force_charging"
+        not_to:
+          - "charge_blocked"
+          - "force_charging"
+        id: top_up_cancelled
+
+    conditions:
+      - condition: template
+        value_template: >
+          {% if trigger.id == 'charge_blocked_entered' %}
+            {% set old_charge = trigger.from_state.attributes.get('battery_charge') %}
+            {% set new_charge = trigger.to_state.attributes.get('battery_charge') %}
+            {% set limit      = trigger.to_state.attributes.get('active_charge_limit') %}
+            {% set top_up     = states('input_number.battery_control_charge_limit_top_up') | float(0) %}
+
+            {# 1. All required data is valid #}
+            {# 3. target has been reached (and not exceeded) #}
+            {# 2. Right direction of transition #}
+            {{
+              top_up > 0 
+              and old_charge | is_number
+              and new_charge | is_number
+              and limit | is_number
+
+              and (new_charge | int) == (limit | int)
+              and (old_charge | int) < (limit | int)
+            }}
+            {# If this is true, the state is updated to ON #}
+
+          {% elif trigger.id == 'charge_target_reached' %}
+            {% set old_charge = trigger.from_state.state %}
+            {% set new_charge = trigger.to_state.state %}
+            {% set target = states('sensor.battery_control_charge_target') | int(0) %}
+            {% set top_up = states('input_number.battery_control_charge_target_top_up') | float(0) %}
+
+            {# 1. Only if we are force_charging #}
+            {# 2. All required data is valid #}
+            {# 3. target has been reached [but not exceeded] from below #}
+            {{
+              is_state('sensor.battery_control_mode', 'force_charging')
+              
+              and top_up > 0 
+              and old_charge | is_number 
+              and new_charge | is_number
+
+              and (new_charge | int) == target
+              and (old_charge | int) < target
+            }}
+            {# If this is true, the state is updated to ON #}
+          {% else %}
+            true
+            {# The state is updated to OFF in all other cases #}
+          {% endif %}
+
+
+  # Remaining top-up energy. It is initialised when a top-up starts, then
+  # adjusted by the signed change in the integrated battery-energy counter.
+  - sensor:
+      - name: "Battery Control: Top-up energy remaining"
+        unique_id: battery_control_charge_top_up_energy_remaining
+        default_entity_id: sensor.battery_control_charge_top_up_energy_remaining
+        unit_of_measurement: "kWh"
 
         state: >
-          {% set mode = states('sensor.battery_control_mode') %}
-          {% set energy_added =
-            states('sensor.battery_control_charge_top_up_energy_added') | float(0)
-          %}
-          {% set required_energy =
-            states(
-              'input_number.battery_control_charge_limit_top_up'
-              if mode == 'charge_blocked'
-              else 'input_number.battery_control_charge_target_top_up'
-            ) | float(0)
-          %}
+          {# When the top-up starts, we initialise the remaining energy to the configured top-up amount. #}
+          {% if trigger.id == 'top_up_started' %}
+            {% set mode = states('sensor.battery_control_mode') %}
 
-          {{ required_energy > 0 and energy_added < required_energy }}
+            {% if mode == 'charge_blocked' %}
+              {{ states('input_number.battery_control_charge_limit_top_up') | float(0) | round(4) }}
+            {% elif mode == 'force_charging' %}
+              {{ states('input_number.battery_control_charge_target_top_up') | float(0) | round(4) }}
+            {% else %}
+              0
+            {% endif %}
+
+          {# If the energy charged into the battery has changed, we apply this change #}
+          {# to our state #}
+          
+          {% elif 
+            trigger.id == 'battery_energy_changed' 
+            and is_state('binary_sensor.battery_control_charge_top_up_required', 'on')
+          %}
+            {% set old_energy = trigger.from_state.state if trigger.from_state is not none else none %}
+            {% set new_energy = trigger.to_state.state if trigger.to_state is not none else none %}
+
+            {% if
+              this.state | is_number
+              and old_energy | is_number
+              and new_energy | is_number
+            %}
+              {% set energy_change = (new_energy | float) - (old_energy | float) %}
+              {{ max(0, (this.state | float) - energy_change) | round(4) }}
+            {% else %}
+              {{ this.state }}
+            {% endif %}
+
+          {% elif trigger.id == 'top_up_stopped' %}
+            0
+          {% else %}
+            {{ this.state }}
+          {% endif %}
+
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.battery_control_charge_top_up_required
+        to: "on"
+        id: top_up_started
+
+      - trigger: state
+        entity_id: binary_sensor.battery_control_charge_top_up_required
+        from: "on"
+        to: "off"
+        id: top_up_stopped
+
+      - trigger: state
+        entity_id: sensor.battery_control_battery_energy
+        to: null
+        id: battery_energy_changed
 
 script:
   battery_control_apply:
@@ -468,8 +518,8 @@ script:
 
           # state "force_charging":
           # Force inverter to charge and prevent discharging until the
-          # target is reached; at the target continue until th requried
-          # top-up energy has been added, then stop forced charging
+          # target is reached; at the target continue until the required
+          # top-up energy has been added, then stop forced charging.
           # discharging is always prevented while in this mode.
           - conditions:
               - condition: template
@@ -599,6 +649,8 @@ automation:
         entity_id:
           - sensor.battery_control_mode
           - sensor.battery_control_prevent_discharging
+          - sensor.battery_control_charge_limit
+          - sensor.battery_control_charge_target
           - sensor.victron_gx_dc_battery_charge
           - binary_sensor.battery_control_charge_top_up_required
           - input_boolean.battery_control_initialised
