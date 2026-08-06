@@ -12,8 +12,10 @@ class SolarPanelCard extends HTMLElement {
     this._config = undefined;
     this._hass = undefined;
     this._history = [];
+    this._limitHistory = [];
     this._lastHistoryLoad = 0;
     this._lastState = undefined;
+    this._lastLimitState = undefined;
     this._loadingHistory = false;
     this._error = undefined;
 
@@ -59,6 +61,7 @@ class SolarPanelCard extends HTMLElement {
 
     const min = Number(config.min ?? 0);
     const max = Number(config.max ?? 100);
+    const limitDivider = Number(config.limit_divider ?? 1);
 
     if (!Number.isFinite(min) || !Number.isFinite(max)) {
       throw new Error("min and max must be valid numbers");
@@ -68,10 +71,18 @@ class SolarPanelCard extends HTMLElement {
       throw new Error("max must be greater than min");
     }
 
+    if (!Number.isFinite(limitDivider) || limitDivider <= 0) {
+      throw new Error("limit_divider must be greater than zero");
+    }
+
     this._config = {
       entity: config.entity,
-      min,
-      max,
+
+      limit_entity: config.limit_entity,
+      limit_divider: limitDivider,
+
+      min: min,
+      max: max,
 
       // Number of hours shown in the trend graph.
       hours_to_show: Number(config.hours_to_show ?? 24),
@@ -117,8 +128,10 @@ class SolarPanelCard extends HTMLElement {
     };
 
     this._history = [];
+    this._limitHistory  = [];
     this._lastHistoryLoad = 0;
     this._lastState = undefined;
+    this._lastLimitState = undefined;
     this._error = undefined;
 
     this._applyConfigurationStyles();
@@ -144,6 +157,24 @@ class SolarPanelCard extends HTMLElement {
 
       if (Number.isFinite(value)) {
         this._addHistoryPoint(Date.now(), value);
+      }
+    }
+
+    const limitStateObject = this._config.limit_entity
+      ? hass.states[this._config.limit_entity]
+      : undefined;
+
+    // Add a new local limit point immediately when its state changes.
+    if (
+      limitStateObject &&
+      limitStateObject.state !== this._lastLimitState
+    ) {
+      this._lastLimitState = limitStateObject.state;
+
+      const value = Number(limitStateObject.state);
+
+      if (Number.isFinite(value)) {
+        this._addLimitHistoryPoint(Date.now(), value);
       }
     }
 
@@ -249,68 +280,37 @@ class SolarPanelCard extends HTMLElement {
       1000
     );
 
-    const path =
-      `history/period/${encodeURIComponent(
-        start.toISOString()
-      )}` +
-      `?filter_entity_id=${encodeURIComponent(
-        this._config.entity
-      )}` +
-      `&end_time=${encodeURIComponent(
-        end.toISOString()
-      )}` +
-      "&minimal_response" +
-      "&no_attributes";
-
     try {
-      const response = await this._hass.callApi(
-        "get",
-        path
+      const historyPromise = this._loadEntityHistory(
+        this._config.entity,
+        start,
+        end
       );
 
-      const states = Array.isArray(response?.[0])
-        ? response[0]
-        : [];
+      // A failure of the optional limit history must not hide
+      // the main entity history.
+      const limitHistoryPromise = this._config.limit_entity
+        ? this._loadEntityHistory(
+            this._config.limit_entity,
+            start,
+            end
+          ).catch((error) => {
+            console.error(
+              "SolarPanelCard could not load limit history",
+              error
+            );
 
-      const points = states
-        .map((item) => {
-          const value = Number(item.state);
+            return this._limitHistory;
+          })
+        : Promise.resolve([]);
 
-          const timestamp = Date.parse(
-            item.last_updated ??
-            item.last_changed ??
-            ""
-          );
+      const [history, limitHistory] = await Promise.all([
+        historyPromise,
+        limitHistoryPromise,
+      ]);
 
-          return {
-            timestamp,
-            value,
-          };
-        })
-        .filter(
-          (point) =>
-            Number.isFinite(point.timestamp) &&
-            Number.isFinite(point.value)
-        );
-
-      const currentState =
-        this._hass.states[this._config.entity];
-
-      if (currentState) {
-        let currentValue = Number(
-          currentState.state
-        );
-        if (Number.isNaN(currentValue)) currentValue = 0;
-
-        if (Number.isFinite(currentValue)) {
-          points.push({
-            timestamp: Date.now(),
-            value: currentValue,
-          });
-        }
-      }
-
-      this._history = this._normalisePoints(points);
+      this._history = history;
+      this._limitHistory = limitHistory;
       this._lastHistoryLoad = Date.now();
     } catch (error) {
       console.error(
@@ -325,6 +325,57 @@ class SolarPanelCard extends HTMLElement {
     }
   }
 
+  async _loadEntityHistory(entityId, start, end) {
+    const path =
+      `history/period/${encodeURIComponent(
+        start.toISOString()
+      )}` +
+      `?filter_entity_id=${encodeURIComponent(
+        entityId
+      )}` +
+      `&end_time=${encodeURIComponent(
+        end.toISOString()
+      )}` +
+      "&minimal_response" +
+      "&no_attributes";
+
+    const response = await this._hass.callApi(
+      "get",
+      path
+    );
+
+    const states = Array.isArray(response?.[0])
+      ? response[0]
+      : [];
+
+    const points = states
+      .map((item) => ({
+        timestamp: Date.parse(
+          item.last_updated ??
+          item.last_changed ??
+          ""
+        ),
+        value: Number(item.state),
+      }))
+      .filter(
+        (point) =>
+          Number.isFinite(point.timestamp) &&
+          Number.isFinite(point.value)
+      );
+
+    const currentState = this._hass.states[entityId];
+    const currentValue = Number(currentState?.state);
+
+    if (Number.isFinite(currentValue)) {
+      points.push({
+        timestamp: Date.now(),
+        value: currentValue,
+      });
+    }
+
+    return this._normalisePoints(points);
+  }
+
   _addHistoryPoint(timestamp, value) {
     this._history.push({
       timestamp,
@@ -333,6 +384,17 @@ class SolarPanelCard extends HTMLElement {
 
     this._history = this._normalisePoints(
       this._history
+    );
+  }
+
+  _addLimitHistoryPoint(timestamp, value) {
+    this._limitHistory.push({
+      timestamp,
+      value,
+    });
+
+    this._limitHistory = this._normalisePoints(
+      this._limitHistory
     );
   }
 
@@ -601,6 +663,109 @@ class SolarPanelCard extends HTMLElement {
     return path;
   }
 
+  _createLimitGraphPath() {
+    const graphPoints =
+      this._limitHistory;
+
+    if (!graphPoints.length) {
+      return {
+        linePath: "",
+        fillPath: "",
+      };
+    }
+
+    const now = Date.now();
+    const suppressThreshold =
+      this._config.max -
+      (this._config.max - this._config.min) *
+        0.03;
+
+    const start =
+      now -
+      this._config.hours_to_show *
+        60 *
+        60 *
+        1000;
+
+    const points = graphPoints.map(
+      (point) => {
+        const x =
+          ((point.timestamp - start) /
+            (now - start)) *
+          100;
+
+        const scaledValue =
+          point.value /
+          this._config.limit_divider;
+
+        const y =
+          40 -
+          ((scaledValue - this._config.min) /
+            (this._config.max -
+              this._config.min)) *
+            40;
+
+        return {
+          x: Math.max(
+            0,
+            Math.min(100, x)
+          ),
+
+          y: Math.max(
+            0,
+            Math.min(40, y)
+          ),
+
+          suppressed:
+            scaledValue >= suppressThreshold,
+        };
+      }
+    );
+
+    let linePath = "";
+    let fillPath = "";
+
+    for (
+      let index = 0;
+      index < points.length;
+      index += 1
+    ) {
+
+      if (points[index].suppressed) {
+        continue;
+      }
+
+      const startX =
+        index === 0
+          ? 0
+          : points[index].x;
+
+      const endX =
+        index + 1 < points.length
+          ? points[index + 1].x
+          : 100;
+
+      const y =
+        points[index].y;
+
+      linePath +=
+        `M ${startX.toFixed(2)} ` +
+        `${y.toFixed(2)} ` +
+        `H ${endX.toFixed(2)} `;
+
+      fillPath +=
+        `M ${startX.toFixed(2)} 0 ` +
+        `H ${endX.toFixed(2)} ` +
+        `V ${y.toFixed(2)} ` +
+        `H ${startX.toFixed(2)} Z `;
+    }
+
+    return {
+      linePath: linePath.trim(),
+      fillPath: fillPath.trim(),
+    };
+  }
+  
   _render() {
     if (!this._config) {
       return;
@@ -644,9 +809,14 @@ class SolarPanelCard extends HTMLElement {
     const graphPath =
       this._createGraphPath();
 
+    const {
+      linePath: limitGraphPath,
+      fillPath: limitGraphFillPath,
+    } = this._createLimitGraphPath();
+
     this._graph.replaceChildren();
 
-    if (graphPath) {
+    if (graphPath || limitGraphPath) {
       const svgNamespace =
         "http://www.w3.org/2000/svg";
 
@@ -715,7 +885,86 @@ class SolarPanelCard extends HTMLElement {
         `${graphPath} L 100 40 L 0 40 Z`
       );
 
-      svg.append(baseline, fill, path);
+      svg.append(baseline);
+
+      if (graphPath) {
+        svg.append(fill, path);
+      }
+
+      if (limitGraphFillPath) {
+        const limitFill =
+          document.createElementNS(
+            svgNamespace,
+            "path"
+          );
+
+        limitFill.setAttribute(
+          "class",
+          "graph-limit-fill"
+        );
+
+        limitFill.setAttribute(
+          "d",
+          limitGraphFillPath
+        );
+
+        limitFill.setAttribute(
+          "fill",
+          "red"
+        );
+
+        limitFill.setAttribute(
+          "fill-opacity",
+          "0.3"
+        );
+
+        limitFill.setAttribute(
+          "stroke",
+          "none"
+        );
+
+        svg.append(limitFill);
+      }
+
+      if (limitGraphPath) {
+        const limitPath =
+          document.createElementNS(
+            svgNamespace,
+            "path"
+          );
+
+        limitPath.setAttribute(
+          "class",
+          "graph-limit-line"
+        );
+
+        limitPath.setAttribute(
+          "d",
+          limitGraphPath
+        );
+
+        limitPath.setAttribute(
+          "fill",
+          "none"
+        );
+
+        limitPath.setAttribute(
+          "stroke",
+          "red"
+        );
+
+        limitPath.setAttribute(
+          "stroke-width",
+          "1"
+        );
+
+        limitPath.setAttribute(
+          "vector-effect",
+          "non-scaling-stroke"
+        );
+
+        svg.append(limitPath);
+      }
 
       this._graph.append(svg);
 

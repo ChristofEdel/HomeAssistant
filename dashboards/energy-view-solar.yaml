@@ -37,6 +37,7 @@ sections:
         stat_types:
           - state
         hide_legend: true
+        min_y_axis: 0
         max_y_axis: 50
         fit_y_data: true
     column_span: 2
@@ -48,15 +49,23 @@ sections:
         cards:
           - type: custom:solar-panel-card
             entity: sensor.hms_1800_4t_249b_ch1_power
+            limit_entity: number.hms_1800_4t_249b_limit_nonpersistent_absolute
+            limit_divider: 4
             max: 460
           - type: custom:solar-panel-card
             entity: sensor.hms_1800_4t_249b_ch2_power
+            limit_entity: number.hms_1800_4t_249b_limit_nonpersistent_absolute
+            limit_divider: 4
             max: 460
           - type: custom:solar-panel-card
             entity: sensor.hms_1800_4t_249b_ch3_power
+            limit_entity: number.hms_1800_4t_249b_limit_nonpersistent_absolute
+            limit_divider: 4
             max: 460
           - type: custom:solar-panel-card
             entity: sensor.hms_1800_4t_249b_ch4_power
+            limit_entity: number.hms_1800_4t_249b_limit_nonpersistent_absolute
+            limit_divider: 4
             max: 460
           - type: markdown
             content: " "
@@ -68,6 +77,7 @@ sections:
             text_only: true
           - type: custom:solar-panel-card
             entity: sensor.hms_400_1t_4615_ch1_power
+            limit_entity: number.hms_400_1t_4615_limit_nonpersistent_absolute
             max: 400
           - type: markdown
             content: " "
@@ -75,39 +85,63 @@ sections:
             text_only: true
           - type: custom:solar-panel-card
             entity: sensor.hms_900_2t_7368_ch1_power
+            limit_entity: number.hms_900_2t_7368_limit_nonpersistent_absolute
+            limit_divider: 2
             max: 400
           - type: custom:solar-panel-card
             entity: sensor.hms_900_2t_7368_ch2_power
+            limit_entity: number.hms_900_2t_7368_limit_nonpersistent_absolute
+            limit_divider: 2
             max: 400
           - type: custom:solar-panel-card
             entity: sensor.hms_900_2t_4514_ch1_power
+            limit_entity: number.hms_900_2t_4514_limit_nonpersistent_absolute
+            limit_divider: 2
             max: 400
           - type: custom:solar-panel-card
             entity: sensor.hms_1600_4t_1608_ch1_power
+            limit_entity: number.hms_1600_4t_1608_limit_nonpersistent_absolute
+            limit_divider: 4
             max: 400
           - type: custom:solar-panel-card
             entity: sensor.hms_1600_4t_1608_ch3_power
+            limit_entity: number.hms_1600_4t_1608_limit_nonpersistent_absolute
+            limit_divider: 4
             max: 400
           - type: custom:solar-panel-card
             entity: sensor.hms_1600_4t_066b_ch1_power
+            limit_entity: number.hms_1600_4t_06bb_limit_nonpersistent_absolute
+            limit_divider: 4
             max: 400
           - type: custom:solar-panel-card
             entity: sensor.hms_1600_4t_066b_ch3_power
+            limit_entity: number.hms_1600_4t_06bb_limit_nonpersistent_absolute
+            limit_divider: 4
             max: 400
           - type: custom:solar-panel-card
             entity: sensor.hms_900_2t_4514_ch2_power
+            limit_entity: number.hms_900_2t_4514_limit_nonpersistent_absolute
+            limit_divider: 2
             max: 400
           - type: custom:solar-panel-card
             entity: sensor.hms_1600_4t_1608_ch2_power
+            limit_entity: number.hms_1600_4t_1608_limit_nonpersistent_absolute
+            limit_divider: 4
             max: 400
           - type: custom:solar-panel-card
             entity: sensor.hms_1600_4t_1608_ch4_power
+            limit_entity: number.hms_1600_4t_1608_limit_nonpersistent_absolute
+            limit_divider: 4
             max: 400
           - type: custom:solar-panel-card
             entity: sensor.hms_1600_4t_066b_ch2_power
+            limit_entity: number.hms_1600_4t_06bb_limit_nonpersistent_absolute
+            limit_divider: 4
             max: 400
           - type: custom:solar-panel-card
             entity: sensor.hms_1600_4t_066b_ch4_power
+            limit_entity: number.hms_1600_4t_06bb_limit_nonpersistent_absolute
+            limit_divider: 4
             max: 400
         grid_options:
           columns: full
