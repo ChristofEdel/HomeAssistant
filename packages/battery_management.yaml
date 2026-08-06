@@ -1,0 +1,217 @@
+# Home assistant package: Controller for managing periodic full charging
+# to maintain battery health.
+#
+
+input_number:
+  battery_management_full_hold_duration:
+    name: "Battery Management: Full hold duration"
+    icon: mdi:timer-outline
+    min: 5
+    max: 1440
+    step: 1
+    mode: box
+    unit_of_measurement: min
+
+  battery_management_days_between_full_charges:
+    name: "Battery Management: Days between full charges"
+    icon: mdi:calendar-refresh
+    min: 0
+    max: 60
+    step: 1
+    mode: box
+    unit_of_measurement: days
+
+  battery_management_days_between_forced_full_charges:
+    name: "Battery Management: Days between forced full charges"
+    icon: mdi:calendar-alert
+    min: 0
+    max: 60
+    step: 1
+    mode: box
+    unit_of_measurement: days
+
+template:
+
+  # Indicates whether the battery is currently at 100%.
+  #
+  # Its last_changed timestamp represents the start of the 
+  # continuous full period
+  - binary_sensor:
+      - name: "Battery Management: Battery full"
+        unique_id: battery_management_battery_full
+        default_entity_id: binary_sensor.battery_management_battery_full
+        device_class: battery
+
+        state: >
+          {{
+            states('sensor.victron_gx_dc_battery_charge') | float(-1)
+            >= 100
+          }}
+
+        availability: >
+          {{
+            states('sensor.victron_gx_dc_battery_charge')
+            | is_number
+          }}
+
+
+  # Stores the endpoint of the most recent qualifying full hold.
+  #
+  # While the battery remains full:
+  # - nothing is recorded until the configured duration has elapsed;
+  # - after that, the timestamp advances once per minute.
+  #
+  # When charge falls below 100%:
+  # - the exact end of the full period is recorded;
+  # - the value then remains unchanged until another qualifying hold.
+  - sensor:
+      - name: "Battery Management: Last full hold"
+        unique_id: battery_management_last_full_hold
+        default_entity_id: sensor.battery_management_last_full_hold
+        device_class: timestamp
+
+        state: >
+          {% set required_seconds = states('input_number.battery_management_full_hold_duration') | float(0) * 60 %}
+          {% set previous = this.state if this.state not in ['unknown', 'unavailable', 'none', ''] else none %}
+
+          {# IF The battery has just fallen below 100%. #}
+          {% if trigger.id == 'full_ended' %}
+
+            {% set held_seconds = (trigger.to_state.last_changed - trigger.from_state.last_changed).total_seconds() %}
+
+            {% if required_seconds > 0 and held_seconds >= required_seconds %}
+              {{ trigger.to_state.last_changed.isoformat() }}
+            {% else %}
+              {{ previous }}
+            {% endif %}
+
+          {# ELSE IF The battery is still at 100%. #}
+          {% elif
+            is_state('binary_sensor.battery_management_battery_full', 'on')
+          %}
+
+            {% set current_time = utcnow() %}
+            {% set held_seconds = (current_time - states.binary_sensor.battery_management_battery_full.last_changed).total_seconds() %}
+
+            {# If we have reached the required duration, set to the current time, otherwise retain the previous value #}
+            {% if required_seconds > 0 and held_seconds >= required_seconds %}
+              {{ current_time.isoformat() }}
+            {% else %}
+              {{ previous }}
+            {% endif %}
+
+          {# ELSE: Not currently full: retain the last qualifying endpoint. #}
+          {% else %}
+            {{ previous }}
+          {% endif %}
+
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.battery_management_battery_full
+        to: "on"
+        id: full_started
+
+      - trigger: state
+        entity_id: binary_sensor.battery_management_battery_full
+        from: "on"
+        to: "off"
+        id: full_ended
+
+      - trigger: state
+        entity_id: input_number.battery_management_full_hold_duration
+        id: duration_changed
+
+      - trigger: time_pattern
+        minutes: "/1"
+        id: minute_tick
+
+  # Calculates when the next regular and forced full charges become due.
+  # calculated based on the last qualifying full hold and the configured intervals,
+  # roudning to the nearest local midnight.
+  - sensor:
+      - name: "Battery Management: Next full charge due"
+        unique_id: battery_management_next_full_charge_due
+        default_entity_id: sensor.battery_management_next_full_charge_due
+        device_class: timestamp
+
+        state: >
+          {% set last_full = states('sensor.battery_management_last_full_hold') | as_datetime | as_local %}
+          {% set interval_days = states('input_number.battery_management_days_between_full_charges') | int(0) %}
+
+          {{
+            (
+              last_full.replace(hour=0, minute=0, second=0, microsecond=0)
+              + timedelta(days=interval_days)
+            ).isoformat()
+          }}
+
+        availability: >
+          {{
+            has_value('sensor.battery_management_last_full_hold')
+            and states('input_number.battery_management_days_between_full_charges') | float(0) > 0
+          }}
+
+
+      - name: "Battery Management: Next forced full charge due"
+        unique_id: battery_management_next_forced_full_charge_due
+        default_entity_id: sensor.battery_management_next_forced_full_charge_due
+        device_class: timestamp
+
+        state: >
+          {% set last_full = states('sensor.battery_management_last_full_hold') | as_datetime | as_local %}
+          {% set interval_days =
+            states(
+              'input_number.battery_management_days_between_forced_full_charges'
+            )
+            | int(0)
+          %}
+
+          {{
+            (
+              last_full.replace(hour=0, minute=0, second=0, microsecond=0)
+              + timedelta(days=interval_days)
+            ).isoformat()
+          }}
+
+        availability: >
+          {{
+            has_value('sensor.battery_management_last_full_hold')
+            and states('input_number.battery_management_days_between_forced_full_charges') | float(0) > 0
+          }}
+
+
+    # Become ON at local midnight on their respective due dates.
+    #
+    # Both sensors are evaluated independently, so both may be ON
+    # simultaneously.
+    binary_sensor:
+      - name: "Battery Management: Full charge required"
+        unique_id: battery_management_full_charge_required
+        default_entity_id: binary_sensor.battery_management_full_charge_required
+        icon: mdi:battery-sync
+
+        state: >
+          {% set next_full = states('sensor.battery_management_next_full_charge_due') | as_datetime | as_local %}
+
+          {{ now() >= next_full }}
+
+        availability: >
+          {{
+            has_value('sensor.battery_management_next_full_charge_due')
+          }}
+
+
+      - name: "Battery Management: Forced full charge required"
+        unique_id: battery_management_forced_full_charge_required
+        default_entity_id: binary_sensor.battery_management_forced_full_charge_required
+        icon: mdi:battery-alert
+
+        state: >
+          {% set next_full = states('sensor.battery_management_next_forced_full_charge_due') | as_datetime | as_local %}
+
+          {{ now() >= next_full }}
+
+        availability: >
+          {{
+            has_value('sensor.battery_management_next_forced_full_charge_due')
+          }}
