@@ -11,6 +11,7 @@
 /home-assistant.log*
 /secrets.yaml
 /custom_components/hacs
+/tts/
 __pycache__/
 Thumbs.db
 /custom_components/opensprinkler/
