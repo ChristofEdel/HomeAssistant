@@ -1,0 +1,156 @@
+type: sections
+max_columns: 4
+title: Tariff
+path: tariff
+icon: mdi:transmission-tower
+sections:
+  - type: grid
+    cards:
+      - type: custom:apexcharts-card
+        grid_options:
+          columns: full
+          rows: 4
+        section_mode: true
+        experimental:
+          color_threshold: true
+        update_interval: 5min
+        header:
+          show: true
+          title: Electricity tariff
+          show_states: false
+        graph_span: 72h
+        span:
+          start: day
+          offset: "-1d"
+        now:
+          show: true
+          label: Now
+        yaxis:
+          - min: 0
+            max: auto
+            align_to: 10
+            decimals: 0
+            apex_config:
+              stepSize: 10
+        apex_config:
+          chart:
+            stacked: false
+          plotOptions:
+            bar:
+              columnWidth: 100%
+              borderRadius: 0
+          tooltip:
+            enabled: true
+            shared: true
+            intersect: false
+          xaxis:
+            type: datetime
+            labels:
+              datetimeUTC: false
+              hideOverlappingLabels: true
+              rotate: 0
+              datetimeFormatter:
+                year: yyyy
+                month: MMM yyyy
+                day: ddd dd MMM
+                hour: HH:mm
+        series:
+          - entity: >-
+              event.octopus_energy_electricity_19l3390321_1200022336139_current_day_rates
+            name: Tariff band
+            type: column
+            opacity: 0.25
+            unit: p/kWh
+            show:
+              in_header: false
+              in_legend: false
+            color_threshold:
+              - value: 0
+                color: var(--green-color)
+              - value: 15
+                color: var(--amber-color)
+              - value: 30
+                color: var(--red-color)
+            data_generator: |
+              const entityIds = [
+                'event.octopus_energy_electricity_19l3390321_1200022336139_previous_day_rates',
+                'event.octopus_energy_electricity_19l3390321_1200022336139_current_day_rates',
+                'event.octopus_energy_electricity_19l3390321_1200022336139_next_day_rates'
+              ];
+
+              const rates = entityIds
+                .flatMap(id => hass.states[id]?.attributes?.rates ?? [])
+                .map(rate => ({
+                  start: new Date(rate.start).getTime(),
+                  end: new Date(rate.end).getTime(),
+                  value: Number(rate.value_inc_vat) * 100
+                }))
+                .filter(rate =>
+                  Number.isFinite(rate.start) &&
+                  Number.isFinite(rate.end) &&
+                  Number.isFinite(rate.value)
+                )
+                .sort((a, b) => a.start - b.start);
+
+              const points = [];
+
+              rates.forEach(rate => {
+                const centre = (rate.start + rate.end) / 2;
+
+                points.push([rate.start, rate.value]);
+                points.push([centre, rate.value]);
+              });
+
+              if (rates.length > 0) {
+                const last = rates[rates.length - 1];
+                points.push([last.end, last.value]);
+              }
+
+              return points;
+          - entity: >-
+              event.octopus_energy_electricity_19l3390321_1200022336139_current_day_rates
+            name: Import price
+            type: line
+            curve: stepline
+            color: var(--color-1)
+            stroke_width: 2
+            extend_to: false
+            unit: p/kWh
+            float_precision: 2
+            data_generator: |
+              const entityIds = [
+                'event.octopus_energy_electricity_19l3390321_1200022336139_previous_day_rates',
+                'event.octopus_energy_electricity_19l3390321_1200022336139_current_day_rates',
+                'event.octopus_energy_electricity_19l3390321_1200022336139_next_day_rates'
+              ];
+
+              const rates = entityIds
+                .flatMap(entityId => hass.states[entityId]?.attributes?.rates ?? [])
+                .map(rate => ({
+                  start: new Date(rate.start).getTime(),
+                  end: new Date(rate.end).getTime(),
+                  value: Number(rate.value_inc_vat) * 100
+                }))
+                .filter(rate =>
+                  Number.isFinite(rate.start) &&
+                  Number.isFinite(rate.end) &&
+                  Number.isFinite(rate.value)
+                )
+                .sort((a, b) => a.start - b.start);
+
+              const points = rates.map(rate => [
+                rate.start,
+                rate.value
+              ]);
+
+              if (rates.length > 0) {
+                const last = rates[rates.length - 1];
+
+                points.push([
+                  last.end,
+                  last.value
+                ]);
+              }
+
+              return points;
+    column_span: 4

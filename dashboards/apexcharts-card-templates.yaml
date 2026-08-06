@@ -1,0 +1,72 @@
+
+# Template with useful defaults for all charts
+standard_chart:
+  section_mode: true
+
+  apex_config:
+    tooltip:
+      shared: true
+      x:
+        show: false
+
+# a template that enables zooming on a chart with a lightweight 
+# home / zoom / pan toolbar which is only visible when zoomed in
+
+zoom_toolbar:
+  apex_config:
+    chart:
+      zoom:
+        enabled: true
+        type: x
+
+      toolbar:
+        show: true
+        autoSelected: zoom
+        tools:
+          download: false
+          selection: false
+          zoom: true
+          zoomin: false
+          zoomout: false
+          pan: true
+          reset: true
+
+      events:
+        mounted: |
+          EVAL:function(ctx) {
+            ctx.__setToolbarVisible = function(visible) {
+              const toolbar =
+                ctx.toolbar?.elZoomReset?.parentElement ??
+                ctx.w?.globals?.dom?.elWrap
+                  ?.querySelector('.apexcharts-toolbar');
+
+              if (toolbar) {
+                toolbar.style.display = visible ? '' : 'none';
+              }
+            };
+
+            ctx.__setToolbarVisible(false);
+          }
+
+        updated: |
+          EVAL:function(ctx) {
+            ctx.__setToolbarVisible?.(
+              Boolean(ctx.w.globals.zoomed)
+            );
+          }
+
+        zoomed: |
+          EVAL:function(ctx) {
+            ctx.__setToolbarVisible?.(true);
+          }
+
+        beforeResetZoom: |
+          EVAL:function(ctx) {
+            // Disable pan mode and restore drag-to-zoom mode.
+            ctx.toolbar.enableZoomPanFromToolbar('zoom');
+
+            // Reset fires the zoomed callback, so hide the toolbar afterwards.
+            setTimeout(function() {
+              ctx.__setToolbarVisible?.(false);
+            }, 0);
+          }

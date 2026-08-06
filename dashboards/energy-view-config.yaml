@@ -1,0 +1,239 @@
+type: sections
+max_columns: 4
+title: Battery Charge Control
+path: config
+icon: mdi:battery-charging-60
+cards: []
+visible:
+  - user: 2e467b3f42fc46b084ef63e7866ed98d
+sections:
+  - type: grid
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: heading
+            heading_style: title
+            icon: mdi:battery-90
+            heading: Day-to-day Battery Control
+          - type: tile
+            entity: input_number.battery_control_charge_limit_manual
+            name: Charge Limit
+            vertical: false
+            features:
+              - type: numeric-input
+                style: slider
+            features_position: inline
+            card_mod:
+              style: |
+                ha-tile-icon {
+                  display: none !important;
+                }
+          - type: tile
+            entity: input_number.battery_control_charge_limit_top_up
+            name: Top-up after reaching limit
+            card_mod:
+              style: |
+                ha-tile-icon {
+                  display: none !important;
+                }
+            features_position: inline
+            features:
+              - type: numeric-input
+                style: slider
+          - type: tile
+            entity: input_number.battery_control_charge_limit_hysteresis
+            name: Hysteresis
+            card_mod:
+              style: |
+                ha-tile-icon {
+                  display: none !important;
+                }
+            features_position: inline
+            features:
+              - type: numeric-input
+                style: slider
+          - type: tile
+            entity: input_number.battery_control_charge_target_off_peak
+            name: Charge Target (off-peak)
+            card_mod:
+              style: |
+                ha-tile-icon {
+                  display: none !important;
+                }
+            features_position: inline
+            features:
+              - type: numeric-input
+                style: slider
+          - type: tile
+            entity: input_number.battery_control_charge_target_top_up
+            name: Top-up after reaching target
+            card_mod:
+              style: |
+                ha-tile-icon {
+                  display: none !important;
+                }
+            features_position: inline
+            features:
+              - type: numeric-input
+                style: slider
+  - type: grid
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: heading
+            heading_style: title
+            icon: mdi:battery-90
+            heading: Battery Health
+          - type: heading
+            heading_style: subtitle
+            heading: Days between full charges
+          - type: tile
+            entity: input_number.battery_management_days_between_full_charges
+            name: Solar
+            vertical: false
+            features:
+              - type: numeric-input
+                style: slider
+            features_position: inline
+            card_mod:
+              style: |
+                ha-tile-icon {
+                  display: none !important;
+                }
+          - type: tile
+            entity: input_number.battery_management_days_between_forced_full_charges
+            name: Off-peak
+            card_mod:
+              style: |
+                ha-tile-icon {
+                  display: none !important;
+                }
+            features_position: inline
+            features:
+              - type: numeric-input
+                style: slider
+          - type: tile
+            entity: input_number.battery_management_full_hold_duration
+            name: Minutes at 100%
+            card_mod:
+              style: |
+                ha-tile-icon {
+                  display: none !important;
+                }
+            features_position: inline
+            features:
+              - type: numeric-input
+                style: slider
+          - type: tile
+            name: Last full hold
+            entity: sensor.battery_management_last_full_hold
+            time_format:
+              type: datetime
+          - type: tile
+            name: Next due (solar)
+            entity: sensor.battery_management_next_full_charge_due
+            time_format: date
+          - type: tile
+            name: Next due (off-peak)
+            entity: sensor.battery_management_next_forced_full_charge_due
+            time_format: date
+  - type: grid
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: heading
+            heading: Manual Control
+            heading_style: title
+          - type: tile
+            entity: input_number.battery_control_charge_target_manual
+            name: Charge Target
+            vertical: false
+            features:
+              - type: numeric-input
+                style: slider
+            features_position: inline
+            card_mod:
+              style: |
+                ha-tile-icon {
+                  display: none !important;
+                }
+          - type: tile
+            entity: input_boolean.battery_control_prevent_discharging_manual
+            name: Prevent Discharging
+            features_position: inline
+            card_mod:
+              style: |
+                ha-tile-icon {
+                  display: none !important;
+                }
+            features:
+              - type: toggle
+  - type: grid
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: heading
+            heading: Battery Control
+            heading_style: title
+            icon: mdi:battery-90
+          - type: tile
+            entity: sensor.battery_control_charge_limit
+            name: Active Charge Limit
+            state_content:
+              - state
+              - reason
+            card_mod:
+              style: |
+                ha-tile-icon {
+                  display: none !important;
+                }
+          - type: tile
+            entity: sensor.battery_control_charge_target
+            name: Active Charge Target
+            state_content:
+              - state
+              - reason
+            vertical: false
+            features_position: bottom
+            card_mod:
+              style: |
+                ha-tile-icon {
+                  display: none !important;
+                }
+          - type: tile
+            entity: sensor.battery_control_prevent_discharging
+            name: Prevent Discharging
+            state_content:
+              - state
+              - reason
+            vertical: false
+            features_position: bottom
+            card_mod:
+              style: |
+                ha-tile-icon {
+                  display: none !important;
+                }
+          - type: tile
+            entity: sensor.battery_control_mode
+            name: Charge Mode
+            card_mod:
+              style: |
+                ha-tile-icon {
+                  display: none !important;
+                }
+          - type: tile
+            entity: binary_sensor.battery_control_charge_top_up_required
+            name: Top-Up Required
+          - type: tile
+            entity: sensor.battery_control_charge_top_up_energy_remaining
+            name: Top-Up Energy Remaining
+          - type: tile
+            entity: number.victron_gx_ess_max_charge_current
+          - type: tile
+            entity: switch.victron_ess_force_charge
+          - type: tile
+            entity: number.victron_gx_ess_max_inverter_power_limit
+          - type: tile
+            entity: sensor.victron_gx_active_soc_limit
+            vertical: false
+            features_position: bottom

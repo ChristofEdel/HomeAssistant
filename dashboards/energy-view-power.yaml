@@ -1,0 +1,205 @@
+type: sections
+max_columns: 2
+title: Power
+path: power
+icon: mdi:power-plug-battery-outline
+theme: standard-dashboard
+cards: []
+sections:
+
+  # Alarm banners
+  - !include components/power-alarms.yaml
+
+  # the live energy dashboard, showing current power flows and battery charge.
+  - type: grid
+    column_span: 1
+    cards:
+
+      # Power Sankey Diagram
+      - type: heading
+        heading: Live
+        icon: mdi:lightning-bolt-outline
+        heading_style: subtitle
+
+      - type: custom:energy-sankey-power-flow-card
+        config_version: 3
+        power_from_grid_entity: sensor.victron_real_time_grid_power
+        generation_entity: sensor.victron_real_time_solar_power
+        battery_entities:
+          - entity: sensor.victron_real_time_battery_power_calculated
+        consumer_entities:
+          - entity: sensor.victron_real_time_power_consumption
+            name: Consumption
+          - entity: sensor.ohme_home_go_power
+            name: EV Charger
+        invert_battery_flows: true
+        hide_small_consumers: false
+        max_consumer_branches: 0
+        independent_grid_in_out: false
+        title: " "
+
+      # Battery charging + limit/target
+      - type: heading
+        heading: Battery (48h, %)
+        icon: mdi:home-battery-outline
+        heading_style: subtitle
+        badges:
+          - type: entity
+            entity: sensor.victron_gx_dc_battery_charge
+            show_icon: true
+            show_state: true
+            color: state
+
+      - type: custom:apexcharts-card
+        cache: false
+        grid_options:
+          columns: full
+          rows: 3
+        config_templates: 
+          - standard_chart
+          - zoom_toolbar
+        graph_span: 48h
+        header:
+          show: false
+        span:
+          start: minute
+          offset: "-48h"
+        yaxis:
+          - id: charge_percent
+            min: 0
+            max: 100
+            decimals: 0
+            apex_config:
+              tickAmount: 4
+          - id: hidden_reversed_axis
+            show: false
+            min: 0
+            max: 100
+            apex_config:
+              reversed: true
+        all_series_config:
+          extend_to: end
+          group_by:
+            duration: 10s
+            func: last
+            fill: last
+        series:
+          - entity: sensor.battery_control_charge_limit
+            name: Charge Limit (reversed)
+            type: area
+            color: red
+            opacity: 0.2
+            curve: stepline
+            stroke_width: 0
+            yaxis_id: hidden_reversed_axis
+            transform: |
+              const value = parseFloat(x);
+              return 100 - (Number.isFinite(value) ? value : 0)
+          - entity: sensor.battery_control_charge_target
+            name: Charge Target
+            yaxis_id: charge_percent
+            type: area
+            color: green
+            opacity: 0.2
+            curve: stepline
+            stroke_width: 0
+            transform: |
+              const value = parseFloat(x);
+              return Number.isFinite(value) ? value : 0;
+          - entity: sensor.battery_control_charge_limit
+            name: Charge Limit
+            type: line
+            color: red
+            stroke_width: 0
+            yaxis_id: charge_percent
+          - entity: sensor.victron_gx_dc_battery_charge
+            name: Battery Charge
+            yaxis_id: charge_percent
+            type: line
+            color: var(--color-1)
+            stroke_width: 2
+        apex_config:
+          legend:
+            show: false
+          grid:
+            padding:
+              top: -8
+          tooltip:
+            enabledOnSeries:
+              - 1
+              - 2
+              - 3
+            inverseOrder: true
+
+      # Grid power
+      - type: heading
+        heading: Grid (48h, kW)
+        heading_style: subtitle
+        icon: mdi:transmission-tower
+
+      - type: custom:apexcharts-card
+        config_templates:
+          - standard_chart
+          - zoom_toolbar
+        grid_options:
+          columns: full
+          rows: 2
+        header:
+          show: false
+        graph_span: 48h
+        yaxis:
+          - min: ~-5
+            max: ~5
+            decimals: 0
+        series:
+          - entity: sensor.victron_gx_grid_power_l1
+            name: Grid power
+            unit: kW
+            color: var(--color-1)
+            stroke_width: 2
+            float_precision: 2
+            transform: |
+              return Number(x) / 1000;
+          - entity: sensor.victron_gx_grid_power_l1
+            name: Scale helper
+            unit: kW
+            stroke_width: 0
+            opacity: 0
+            transform: |
+              return -Number(x) / 1000;
+            show:
+              in_header: false
+              in_legend: false
+              legend_value: false
+        apex_config:
+          legend:
+            show: false
+          grid:
+            padding:
+              top: -10
+          tooltip:
+            enabledOnSeries:
+              - 0
+
+  # the daily history graph
+
+  - type: grid
+    column_span: 1
+    cards:
+
+      - type: heading
+        icon: mdi:calendar
+        heading: Daily
+        heading_style: subtitle
+
+      - type: energy-date-selection
+        vertical_opening_direction: auto
+        opening_direction: auto
+        card_mod:
+          style:
+            hui-energy-period-selector$: |
+              .date-picker-icon {
+                display: none !important;
+              }
+              
+      - type: energy-usage-graph

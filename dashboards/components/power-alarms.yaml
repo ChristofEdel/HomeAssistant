@@ -1,0 +1,61 @@
+# power-alarms.yaml
+#
+# A grid showing "Grid Outage" and "Battery Low" alarms.
+# The grid is only visible if one of the alarms is active.
+
+type: grid
+column_span: 2
+theme: alarm-card-styles
+cards:
+
+  - type: tile
+    name: Grid Outage
+    icon: mdi:transmission-tower-off
+    entity: binary_sensor.victron_real_time_off_grid_alarm
+    visibility:
+      - condition: state
+        entity: binary_sensor.victron_real_time_off_grid_alarm
+        state: "on"
+    hide_state: true
+    card_mod:
+      class: alarm-tile
+    grid_options:
+      columns: full
+      
+  - type: tile
+    name: Battery Very Low
+    entity: sensor.battery_low_alarm
+    visibility:
+      - condition: state
+        entity: sensor.battery_low_alarm
+        state: alarm
+    hide_state: true
+    card_mod:
+      class: alarm-tile
+    grid_options:
+      columns: full
+
+  - type: tile
+    name: Battery Low
+    entity: sensor.battery_low_alarm
+    visibility:
+      - condition: state
+        entity: sensor.battery_low_alarm
+        state: warning
+    hide_state: true
+    card_mod:
+      class: warning-tile
+    grid_options:
+      columns: full
+
+visibility:
+  - condition: or
+    conditions:
+      - condition: state
+        entity: binary_sensor.victron_real_time_off_grid_alarm
+        state: "on"
+      - condition: state
+        entity: sensor.battery_low_alarm
+        state:
+          - alarm
+          - warning

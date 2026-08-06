@@ -1,0 +1,123 @@
+type: sections
+path: solar
+max_columns: 2
+title: Solar
+icon: mdi:weather-sunny
+theme: standard-dashboard
+sections:
+  - type: grid
+    cards:
+      - type: statistics-graph
+        grid_options:
+          columns: 12
+          rows: auto
+        entities:
+          - sensor.opendtu_4b0618_ac_power
+          - sensor.dynamic_power_limiter_total_upper_power_limit
+        days_to_show: 1.25
+        period: 5minute
+        chart_type: line
+        stat_types:
+          - mean
+          - min
+          - max
+        hide_legend: true
+        min_y_axis: 0
+        max_y_axis: 6000
+        fit_y_data: true
+      - type: statistics-graph
+        grid_options:
+          columns: 12
+          rows: auto
+        entities:
+          - sensor.solar_production_today
+        days_to_show: 7
+        period: day
+        chart_type: bar
+        stat_types:
+          - state
+        hide_legend: true
+        max_y_axis: 50
+        fit_y_data: true
+    column_span: 2
+  - type: grid
+    cards:
+      - square: false
+        type: grid
+        columns: 5
+        cards:
+          - type: custom:solar-panel-card
+            entity: sensor.hms_1800_4t_249b_ch1_power
+            max: 460
+          - type: custom:solar-panel-card
+            entity: sensor.hms_1800_4t_249b_ch2_power
+            max: 460
+          - type: custom:solar-panel-card
+            entity: sensor.hms_1800_4t_249b_ch3_power
+            max: 460
+          - type: custom:solar-panel-card
+            entity: sensor.hms_1800_4t_249b_ch4_power
+            max: 460
+          - type: markdown
+            content: " "
+            show_empty: true
+            text_only: true
+          - type: markdown
+            content: " "
+            show_empty: true
+            text_only: true
+          - type: custom:solar-panel-card
+            entity: sensor.hms_400_1t_4615_ch1_power
+            max: 400
+          - type: markdown
+            content: " "
+            show_empty: true
+            text_only: true
+          - type: custom:solar-panel-card
+            entity: sensor.hms_900_2t_7368_ch1_power
+            max: 400
+          - type: custom:solar-panel-card
+            entity: sensor.hms_900_2t_7368_ch2_power
+            max: 400
+          - type: custom:solar-panel-card
+            entity: sensor.hms_900_2t_4514_ch1_power
+            max: 400
+          - type: custom:solar-panel-card
+            entity: sensor.hms_1600_4t_1608_ch1_power
+            max: 400
+          - type: custom:solar-panel-card
+            entity: sensor.hms_1600_4t_1608_ch3_power
+            max: 400
+          - type: custom:solar-panel-card
+            entity: sensor.hms_1600_4t_066b_ch1_power
+            max: 400
+          - type: custom:solar-panel-card
+            entity: sensor.hms_1600_4t_066b_ch3_power
+            max: 400
+          - type: custom:solar-panel-card
+            entity: sensor.hms_900_2t_4514_ch2_power
+            max: 400
+          - type: custom:solar-panel-card
+            entity: sensor.hms_1600_4t_1608_ch2_power
+            max: 400
+          - type: custom:solar-panel-card
+            entity: sensor.hms_1600_4t_1608_ch4_power
+            max: 400
+          - type: custom:solar-panel-card
+            entity: sensor.hms_1600_4t_066b_ch2_power
+            max: 400
+          - type: custom:solar-panel-card
+            entity: sensor.hms_1600_4t_066b_ch4_power
+            max: 400
+        grid_options:
+          columns: full
+          rows: auto
+    column_span: 2
+cards: []
+header:
+  card:
+    type: markdown
+    content: >
+      # Solar: {{ '{:,.0f}'.format(states('sensor.opendtu_4b0618_ac_power') |
+      float(0))  }} W
+badges: []

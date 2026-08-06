@@ -1,0 +1,9 @@
+# dashboard/energy-dashboard.yaml
+apexcharts_card_templates: !include apexcharts-card-templates.yaml
+
+views:
+  - !include energy-view-power.yaml
+  - !include energy-view-solar.yaml
+  - !include energy-view-tariff.yaml
+  - !include energy-view-config.yaml
+  - !include energy-view-alarm-config.yaml

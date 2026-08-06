@@ -7,15 +7,51 @@ standard-dashboard:
   ha-card-header-font-size: var(--ha-font-size-l)               # Makes headers less massive, default is x2 which is disproportionate to the rest of the dashboard 
   ha-heading-card-title-font-size: var(--ha-font-size-xl)       # Make headings more prominent than the card headers
   ha-heading-card-title-font-weight: var(--ha-font-weight-bold) # and bold
+  ha-heading-card-subtitle-font-size: var(--ha-font-size-l)     # Make subheadings a bit smaller
 
-  # adjust apexchart card headers to match standard card headers
   card-mod-theme: standard-dashboard
-  card-mod-card: |
-    :host(apexcharts-card) div#header__title {
-      font-size: var(--ha-card-header-font-size) !important;
-      font-weight: var(--ha-card-header-font-weight, var(--ha-font-weight-normal)) !important;
-      color: var(--ha-card-header-color, var(--primary-text-color)) !important;
-    }
-    :host(hui-heading-card) .content {
-      --mdc-icon-size: var(--ha-heading-card-title-font-size, var(--ha-font-size-l));
-    }
+  card-mod-card-yaml: |
+    .: |
+      /* Match heading-card icon size */
+      :host(hui-heading-card) .content {
+        --mdc-icon-size: var(--ha-heading-card-title-font-size, var(--ha-font-size-l)) !important;
+      }
+
+      "apexcharts-card $":
+        .: |
+          /* Match ApexCharts title typography */
+          #header__title {
+            font-size:   var(--ha-card-header-font-size) !important;
+            font-weight: var(--ha-card-header-font-weight, var(--ha-font-weight-normal)) !important;
+            color:       var(--ha-card-header-color, var(--primary-text-color)) !important;
+          }
+
+          /* Toolbar opacity */
+          .apexcharts-toolbar {
+            opacity: 0.5 !important;
+          }
+
+          /* Compact tooltip */
+          .apexcharts-tooltip-series-group,
+          .apexcharts-tooltip-series-group.apexcharts-active,
+          .apexcharts-tooltip-series-group:last-child {
+            padding: 2px 5px !important;
+          }
+
+          .apexcharts-tooltip-y-group {
+            padding: 1px 0 !important;
+            line-height: 1.1 !important;
+          }
+
+          /* Translucent tooltip */
+          .apexcharts-tooltip,
+          .apexcharts-tooltip.apexcharts-theme-light,
+          .apexcharts-tooltip.apexcharts-theme-dark {
+            background: rgba(255, 255, 255, 0.66) !important;
+          }
+
+  # energy-grid-return-color:
+  # energy-battery-in-color:
+  # energy-grid-consumption-color:
+  # energy-solar-color:
+  # energy-battery-out-color:

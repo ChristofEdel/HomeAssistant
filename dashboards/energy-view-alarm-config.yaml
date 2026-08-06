@@ -1,0 +1,141 @@
+type: sections
+max_columns: 4
+title: Battery Warnings
+icon: mdi:battery-alert
+path: alarm-config
+cards: []
+visible:
+  - user: 2e467b3f42fc46b084ef63e7866ed98d
+sections:
+  - type: grid
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: heading
+            heading: Battery Alarm Thresholds
+            heading_style: title
+            icon: mdi:battery-40
+          - type: heading
+            heading: Grid available
+            heading_style: subtitle
+            icon: mdi:transmission-tower
+          - type: tile
+            entity: input_number.battery_min_charge_warning_level_pending
+            name: Warning
+            card_mod:
+              style:
+                .: |
+                  ha-tile-icon {
+                    display: none !important;
+                  }
+                ha-tile-container $: |
+                  .container.horizontal ::slotted([slot="features"]) {
+                    width: calc(
+                      70% - var(--column-gap, 0px) / 2 - var(--ha-space-3)
+                    ) !important;
+                  }
+            features_position: inline
+            features:
+              - type: numeric-input
+                style: slider
+            tap_action:
+              action: more-info
+              entity: input_number.battery_min_charge_warning_level
+            icon_tap_action:
+              action: more-info
+              entity: input_number.battery_min_charge_warning_level
+          - type: tile
+            entity: input_number.battery_min_charge_alarm_level_pending
+            name: Alarm
+            card_mod:
+              style:
+                .: |
+                  ha-tile-icon {
+                    display: none !important;
+                  }
+                ha-tile-container $: |
+                  .container.horizontal ::slotted([slot="features"]) {
+                    width: calc(
+                      70% - var(--column-gap, 0px) / 2 - var(--ha-space-3)
+                    ) !important;
+                  }
+            features_position: inline
+            features:
+              - type: numeric-input
+                style: slider
+            tap_action:
+              action: more-info
+              entity: input_number.battery_min_charge_alarm_level
+            icon_tap_action:
+              action: more-info
+              entity: input_number.battery_min_charge_alarm_level
+          - type: heading
+            heading: Off-grid
+            heading_style: subtitle
+            icon: mdi:transmission-tower-off
+          - type: tile
+            entity: input_number.battery_min_charge_warning_level_off_grid_pending
+            name: Warning
+            card_mod:
+              style:
+                .: |
+                  ha-tile-icon {
+                    display: none !important;
+                  }
+                ha-tile-container $: |
+                  .container.horizontal ::slotted([slot="features"]) {
+                    width: calc(
+                      70% - var(--column-gap, 0px) / 2 - var(--ha-space-3)
+                    ) !important;
+                  }
+            features_position: inline
+            features:
+              - type: numeric-input
+                style: slider
+            tap_action:
+              action: more-info
+              entity: input_number.battery_min_charge_warning_level_off_grid
+            icon_tap_action:
+              action: more-info
+              entity: input_number.battery_min_charge_warning_level_off_grid
+          - type: tile
+            entity: input_number.battery_min_charge_alarm_level_off_grid_pending
+            name: Alarm level
+            card_mod:
+              style:
+                .: |
+                  ha-tile-icon {
+                    display: none !important;
+                  }
+                ha-tile-container $: |
+                  .container.horizontal ::slotted([slot="features"]) {
+                    width: calc(
+                      70% - var(--column-gap, 0px) / 2 - var(--ha-space-3)
+                    ) !important;
+                  }
+            features_position: inline
+            features:
+              - type: numeric-input
+                style: slider
+            tap_action:
+              action: more-info
+              entity: input_number.battery_min_charge_alarm_level_off_grid
+            icon_tap_action:
+              action: more-info
+              entity: input_number.battery_min_charge_alarm_level_off_grid
+          - type: heading
+            heading_style: subtitle
+            badges:
+              - type: button
+                text: Cancel
+                icon: mdi:close
+                tap_action:
+                  action: perform-action
+                  perform_action: script.battery_min_charge_levels_cancel
+              - type: button
+                text: Save
+                icon: mdi:content-save
+                color: green
+                tap_action:
+                  action: perform-action
+                  perform_action: script.battery_min_charge_levels_save
