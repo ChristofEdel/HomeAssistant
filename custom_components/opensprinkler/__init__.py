@@ -16,6 +16,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import async_get_platforms
 from homeassistant.helpers.restore_state import RestoreEntity
@@ -164,6 +165,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         name=f"{entry.data.get(CONF_NAME, DEFAULT_NAME)} resource status",
         update_method=updater.async_update_data,
         update_interval=timedelta(seconds=scan_interval),
+        request_refresh_debouncer=Debouncer(
+            hass,
+            _LOGGER,
+            cooldown=0.05,
+            immediate=True,
+        ),
     )
 
     # initial load before loading platforms
