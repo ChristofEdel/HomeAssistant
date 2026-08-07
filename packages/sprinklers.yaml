@@ -263,6 +263,146 @@ template:
             + states('sensor.garden_sprinklers_lawn_right_station_water_total')  | float(0)
           }}
 
+# Next run date and time for three programs - veggies, tries, dry lawns
+      - name: "Garden Sprinklers: Trees Next Run"
+        unique_id: garden_sprinklers_trees_next_run
+        default_entity_id: sensor.garden_sprinklers_trees_next_run
+        device_class: timestamp
+        icon: mdi:calendar-clock
+        state: >
+          {% from 'opensprinkler-helpers.jinja' import next_program_run %}
+          {% set get_next_run = next_program_run | as_function %}
+          {% set result = get_next_run('garden_sprinklers_trees') %}
+          {{ result.isoformat() if result is not none else none }}
+
+      - name: "Garden Sprinklers: Veggies Next Run"
+        unique_id: garden_sprinklers_veggies_next_run
+        default_entity_id: sensor.garden_sprinklers_veggies_next_run
+        device_class: timestamp
+        icon: mdi:calendar-clock
+        state: >
+          {% from 'opensprinkler-helpers.jinja' import next_program_run %}
+          {% set get_next_run = next_program_run | as_function %}
+          {% set result = get_next_run('garden_sprinklers_veggies') %}
+          {{ result.isoformat() if result is not none else none }}
+
+      - name: "Garden Sprinklers: Lawns Next Run"
+        unique_id: garden_sprinklers_dry_lawns_next_run
+        default_entity_id: sensor.garden_sprinklers_dry_lawns_next_run
+        device_class: timestamp
+        icon: mdi:calendar-clock
+        state: >
+          {% from 'opensprinkler-helpers.jinja' import next_program_run %}
+          {% set get_next_run = next_program_run | as_function %}
+          {% set result = get_next_run('garden_sprinklers_dry_lawns') %}
+          {{ result.isoformat() if result is not none else none }}
+
+  - binary_sensor:
+      - name: "Garden Sprinklers: Trees Status"
+        unique_id: garden_sprinklers_trees_program_status
+        default_entity_id: binary_sensor.garden_sprinklers_trees_program_status
+        device_class: running
+        icon: mdi:sprinkler
+        state: >
+          {{
+            is_state('binary_sensor.garden_sprinklers_trees_program_running', 'on')
+            or is_state('binary_sensor.garden_sprinklers_trees_station_running', 'on')
+          }}
+        attributes:
+          running_text: >
+            {% from 'opensprinkler-helpers.jinja' import remaining_time %}
+            {{ 
+              remaining_time_text(
+                'binary_sensor.garden_sprinklers_trees_station_running'
+              ) 
+            }}
+          next_run: >
+            {% from 'opensprinkler-helpers.jinja' import next_run_text %}
+            {% set value = states('sensor.garden_sprinklers_trees_next_run') %}
+            {{ next_run_text(value) }}
+
+    triggers:
+      - trigger: state
+        entity_id:
+          - binary_sensor.garden_sprinklers_veggies_program_running
+          - binary_sensor.garden_sprinklers_veggies_station_running
+      - trigger: time_pattern
+        seconds: "*"
+
+  - binary_sensor:
+      - name: "Garden Sprinklers: Veggies Status"
+        unique_id: garden_sprinklers_veggies_program_status
+        default_entity_id: binary_sensor.garden_sprinklers_veggies_program_status
+        device_class: running
+        icon: mdi:sprinkler
+        state: >
+          {{
+            is_state('binary_sensor.garden_sprinklers_veggies_program_running', 'on')
+            or is_state('binary_sensor.garden_sprinklers_veggies_station_running', 'on')
+          }}
+        attributes:
+          running_text: >
+            {% from 'opensprinkler-helpers.jinja' import remaining_time %}
+            {{ 
+              remaining_time_text(
+                'binary_sensor.garden_sprinklers_veggies_station_running'
+              ) 
+            }}
+          next_run: >
+            {% from 'opensprinkler-helpers.jinja' import next_run_text %}
+            {% set value = states('sensor.garden_sprinklers_veggies_next_run') %}
+            {{ next_run_text(value) }}
+
+    triggers:
+      - trigger: state
+        entity_id:
+          - binary_sensor.garden_sprinklers_veggies_program_running
+          - binary_sensor.garden_sprinklers_veggies_station_running
+      - trigger: time_pattern
+        seconds: "*"
+
+  - binary_sensor:
+      - name: "Garden Sprinklers: Lawns Status"
+        unique_id: garden_sprinklers_lawns_program_status
+        default_entity_id: binary_sensor.garden_sprinklers_lawns_program_status
+        device_class: running
+        icon: mdi:sprinkler
+        state: >
+          {{
+            is_state('binary_sensor.garden_sprinklers_lawns_program_running', 'on')
+            or is_state('binary_sensor.garden_sprinklers_front_lawn_station_running', 'on')
+            or is_state('binary_sensor.garden_sprinklers_lawn_left_1_station_running', 'on')
+            or is_state('binary_sensor.garden_sprinklers_lawn_left_2_station_running', 'on')
+            or is_state('binary_sensor.garden_sprinklers_lawn_mid_station_running', 'on')
+            or is_state('binary_sensor.garden_sprinklers_lawn_right_station_running', 'on')
+          }}
+        attributes:
+          running_text: >
+            {% from 'opensprinkler-helpers.jinja' import remaining_time %}
+            {{ 
+              remaining_time_text(
+                'binary_sensor.garden_sprinklers_lawn_left_1_station_running'
+              ) 
+            }}
+          next_run: >
+            {% from 'opensprinkler-helpers.jinja' import next_run_text %}
+            {% set value = states('sensor.garden_sprinklers_lawns_next_run') %}
+            {{ next_run_text(value) }}
+
+    triggers:
+      - trigger: state
+        entity_id:
+          - binary_sensor.garden_sprinklers_lawns_program_running
+          - binary_sensor.garden_sprinklers_front_lawn_station_running
+          - binary_sensor.garden_sprinklers_lawn_left_1_station_running
+          - binary_sensor.garden_sprinklers_lawn_left_2_station_running
+          - binary_sensor.garden_sprinklers_lawn_mid_station_running
+          - binary_sensor.garden_sprinklers_lawn_right_station_running
+      - trigger: time_pattern
+        seconds: "*"
+
+
+
 sensor:
   - platform: integration
     source: sensor.garden_sprinklers_front_lawn_station_flow_rate

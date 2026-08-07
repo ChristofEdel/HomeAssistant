@@ -1,0 +1,237 @@
+/* opensprinkler-program-card v1.2.0 */
+
+:host {
+  display: block;
+  color: var(--primary-text-color);
+  font-family: var(--paper-font-body1_-_font-family, inherit);
+}
+
+ha-card {
+  overflow: hidden;
+}
+
+.section-divider {
+  width: 100%;
+  border-top: 1px solid var(--ha-card-border-color, var(--divider-color));
+  margin: 8px 0 4px;
+}
+
+.entity-row {
+  min-height: 48px;
+  padding: 4px 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.entity-name {
+  min-width: 0;
+  font-size: 14px;
+}
+
+.entity-control {
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.select-control,
+.number-control,
+.date-control,
+.time-control {
+  box-sizing: border-box;
+  height: 36px;
+  min-height: 36px;
+  border: 1px solid var(--divider-color);
+  border-radius: 8px;
+  background: var(--card-background-color, var(--ha-card-background));
+  color: var(--primary-text-color);
+  font: inherit;
+  outline: none;
+}
+
+.select-control:focus,
+.number-control:focus,
+.date-control:focus,
+.time-control:focus {
+  border-color: var(--primary-color);
+}
+
+.select-control {
+  min-width: 150px;
+  padding: 0 32px 0 10px;
+}
+
+.number-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.number-control {
+  width: 92px;
+  padding: 0 8px;
+  text-align: right;
+}
+
+.date-control,
+.time-control {
+  padding: 0 8px;
+}
+
+.unit {
+  color: var(--secondary-text-color);
+  font-size: 13px;
+  min-width: 24px;
+}
+
+.toggle {
+  position: relative;
+  display: inline-flex;
+  width: 40px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-track {
+  width: 40px;
+  height: 24px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  background: var(--disabled-color, rgba(127,127,127,.45));
+  transition: background .15s ease;
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text-primary-color, white);
+  box-shadow: 0 1px 3px rgba(0,0,0,.35);
+  transition: transform .15s ease;
+}
+
+.toggle input:checked + .toggle-track {
+  background: var(--primary-color);
+}
+
+.toggle input:checked + .toggle-track .toggle-thumb {
+  transform: translateX(16px);
+}
+
+.toggle input:disabled + .toggle-track {
+  opacity: .45;
+  cursor: default;
+}
+
+.weekday-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px 16px 8px;
+}
+
+.weekday-button {
+  min-width: 0;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--divider-color);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--primary-text-color);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.weekday-button.active {
+  border-color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 18%, transparent);
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+
+.missing {
+  max-width: 260px;
+  color: var(--error-color, #db4437);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.empty-stations {
+  padding: 8px 16px 12px;
+  color: var(--secondary-text-color);
+  font-size: 13px;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--divider-color);
+  margin-top: 8px;
+}
+
+.action-button {
+  min-width: 84px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid var(--primary-color);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.action-button.cancel {
+  background: transparent;
+  color: var(--primary-color);
+}
+
+.action-button.save {
+  background: var(--primary-color);
+  color: var(--text-primary-color, white);
+}
+
+.action-button:disabled {
+  opacity: .35;
+  cursor: default;
+}
+
+.save-error {
+  flex: 1;
+  color: var(--error-color, #db4437);
+  font-size: 12px;
+}
+
+@media (max-width: 420px) {
+  .entity-row {
+    gap: 10px;
+  }
+
+  .select-control {
+    min-width: 130px;
+    max-width: 170px;
+  }
+
+  .missing {
+    max-width: 170px;
+  }
+}

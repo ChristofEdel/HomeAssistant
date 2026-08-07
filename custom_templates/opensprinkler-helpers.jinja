@@ -1,0 +1,116 @@
+{% macro next_program_run(program, returns) %}
+
+  {% set enabled       = is_state('switch.' ~ program ~ '_program_enabled', 'on') %}
+  {% set schedule_type = states('select.' ~ program ~ '_type') %}
+  {% set start_time    = states('time.' ~ program ~ '_start_time')%}
+  {% set restriction   = states('select.' ~ program ~ '_restrictions') %}
+
+  {# Basic checkes - disabled, no schedule or no time --> no next run #}
+  {% if not enabled 
+        or schedule_type not in ['Weekly', 'Monthly', 'Interval', 'Single-run']
+        or start_time in ['unknown', 'unavailable'] %}
+    {% do returns(none) %}
+
+  {% else %}
+
+    {% set weekdays = [
+        'switch.' ~ program ~ '_monday_enabled',
+        'switch.' ~ program ~ '_tuesday_enabled',
+        'switch.' ~ program ~ '_wednesday_enabled',
+        'switch.' ~ program ~ '_thursday_enabled',
+        'switch.' ~ program ~ '_friday_enabled',
+        'switch.' ~ program ~ '_saturday_enabled',
+        'switch.' ~ program ~ '_sunday_enabled'
+    ] %}
+
+    {% set monthly_day      = states('number.' ~ program ~ '_day_of_month') | int(0) %}
+    {% set interval_days    = states('number.' ~ program ~ '_interval_days') | int(0) %}
+    {% set starting_in_days = states('number.' ~ program ~ '_starting_in_days') | int(0) %}
+    {% set single_run_date  = states('date.' ~ program ~ '_single_run_start_date') | as_datetime %}  
+
+    {% set ns = namespace(next_run = none) %}
+
+    {% for offset in range(0, 367) %}
+
+      {% set candidate = today_at(start_time) + timedelta(days=offset) %}
+      {% set schedule_match = false %}
+
+      {% if schedule_type == 'Weekly' %}
+        {% set schedule_match = is_state(weekdays[candidate.weekday()], 'on') %}
+
+      {% elif schedule_type == 'Monthly' %}
+        {% set schedule_match = 
+            candidate.day == monthly_day 
+            or (monthly_day == 0 and (candidate + timedelta(days=1)).day == 1)
+      %}
+
+      {% elif schedule_type == 'Interval' %}
+        {% set schedule_match =
+            interval_days > 0
+            and offset >= starting_in_days
+            and ((offset - starting_in_days) % interval_days == 0)
+        %}
+
+      {% elif schedule_type == 'Single-run' %}
+        {% set schedule_match = single_run_date is not none and candidate.date() == single_run_date.date() %}
+
+      {% endif %}
+
+      {% set restriction_match = true %}
+
+      {% if restriction == 'Odd Days Only' %}
+        {% set restriction_match =
+            candidate.day % 2 == 1
+            and candidate.day != 31
+            and not (candidate.month == 2 and candidate.day == 29)
+        %}
+        {# month end days do not count as odd to prevent watering on two consecutive days
+        around a month boundary #}
+
+      {% elif restriction == 'Even Days Only' %}
+        {% set restriction_match = candidate.day % 2 == 0 %}
+      {% endif %}
+
+      {% if candidate > now() and schedule_match and restriction_match %}
+        {% set ns.next_run = candidate %}
+        {% break %}
+      {% endif %}
+
+    {% endfor %}
+
+    {% do returns(ns.next_run) %}
+  {% endif %}
+
+{% endmacro %}
+
+{% macro remaining_time_text(station_entity) -%}
+  {% if is_state(station_entity, 'on') %}
+    {% set end = state_attr(station_entity, 'end_time') %}
+    {% if end %}
+      {% set s = [0, (as_timestamp(end) - as_timestamp(now())) | int] | max %}
+      {% if s < 60 %}
+        {{ s }} seconds remaining
+      {% elif s < 180 %}
+        {{ s // 60 }}:{{ '%02d' | format(s % 60) }} minutes remaining
+      {% else %}
+        {{ (s + 59) // 60 }} minutes remaining
+      {% endif %}
+    {% else %}
+      Running
+    {% endif %}
+  {% endif %}
+{%- endmacro %}
+
+{% macro next_run_text(value) -%}
+  {% if value not in ['unknown', 'unavailable', 'none', ''] %}
+    {{
+      'Next run: '
+      ~ as_local(as_datetime(value)).strftime('%d-%b-%Y %H:%M')
+      ~ ' ('
+      ~ time_until(as_datetime(value))
+      ~ ')'
+    }}
+  {% else %}
+    Not scheduled
+  {% endif %}
+{%- endmacro %}
