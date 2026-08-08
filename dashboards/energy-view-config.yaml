@@ -16,7 +16,7 @@ sections:
             icon: mdi:battery-90
             heading: Day-to-day Battery Control
           - type: tile
-            entity: input_number.battery_control_charge_limit_manual
+            entity: input_number.battery_control_charge_limit_standard
             name: Charge Limit
             vertical: false
             features:
@@ -144,6 +144,19 @@ sections:
           - type: heading
             heading: Manual Control
             heading_style: title
+          - type: tile
+            entity: input_number.battery_control_charge_limit_manual
+            name: Charge Limit
+            vertical: false
+            features:
+              - type: numeric-input
+                style: slider
+            features_position: inline
+            card_mod:
+              style: |
+                ha-tile-icon {
+                  display: none !important;
+                }
           - type: tile
             entity: input_number.battery_control_charge_target_manual
             name: Charge Target
