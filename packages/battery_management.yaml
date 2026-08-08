@@ -34,13 +34,12 @@ template:
 
   # Indicates whether the battery is currently at 100%.
   #
-  # Its last_changed timestamp represents the start of the 
+  # Its last_change attribute represents the start of the 
   # continuous full period
   - binary_sensor:
       - name: "Battery Management: Battery full"
         unique_id: battery_management_battery_full
         default_entity_id: binary_sensor.battery_management_battery_full
-        device_class: battery
 
         state: >
           {{
@@ -54,6 +53,35 @@ template:
             | is_number
           }}
 
+        attributes:
+          last_change: >
+            {% set new_state =
+              states('sensor.victron_gx_dc_battery_charge') | float(-1) >= 100
+            %}
+            {% set previous_state =
+              this.attributes.previous_state | default(none)
+            %}
+            {% if previous_state is none or new_state != (previous_state | bool) %}
+              {{ now().isoformat() }}
+            {% else %}
+              {{ this.attributes.last_change }}
+            {% endif %}
+
+          previous_state: >
+            {% if states('sensor.victron_gx_dc_battery_charge') | is_number %}
+              {{
+                states('sensor.victron_gx_dc_battery_charge') | float
+                >= 100
+              }}
+            {% else %}
+              {{ this.attributes.previous_state | default(none) }}
+            {% endif %}
+
+    triggers:
+      - trigger: state
+        entity_id: sensor.victron_gx_dc_battery_charge
+
+    
 
   # Stores the endpoint of the most recent qualifying full hold.
   #
@@ -65,7 +93,7 @@ template:
   # - the exact end of the full period is recorded;
   # - the value then remains unchanged until another qualifying hold.
   - sensor:
-      - name: "Battery Management: Last full hold"
+      - name: "Battery Management: Last full hold end time"
         unique_id: battery_management_last_full_hold
         default_entity_id: sensor.battery_management_last_full_hold
         device_class: timestamp
@@ -77,10 +105,12 @@ template:
           {# IF The battery has just fallen below 100%. #}
           {% if trigger.id == 'full_ended' %}
 
-            {% set held_seconds = (trigger.to_state.last_changed - trigger.from_state.last_changed).total_seconds() %}
+            {% set from_state_changed_at = trigger.from_state.attributes.last_change | as_datetime %}
+            {% set to_state_changed_at = trigger.to_state.attributes.last_change | as_datetime %}
+            {% set held_seconds = (to_state_changed_at - from_state_changed_at).total_seconds() %}
 
             {% if required_seconds > 0 and held_seconds >= required_seconds %}
-              {{ trigger.to_state.last_changed.isoformat() }}
+              {{ to_state_changed_at.isoformat() }}
             {% else %}
               {{ previous }}
             {% endif %}
@@ -91,7 +121,7 @@ template:
           %}
 
             {% set current_time = utcnow() %}
-            {% set held_seconds = (current_time - states.binary_sensor.battery_management_battery_full.last_changed).total_seconds() %}
+            {% set held_seconds = (current_time - (states.binary_sensor.battery_management_battery_full.attributes.last_change | as_datetime)).total_seconds() %}
 
             {# If we have reached the required duration, set to the current time, otherwise retain the previous value #}
             {% if required_seconds > 0 and held_seconds >= required_seconds %}
