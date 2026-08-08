@@ -297,6 +297,155 @@ template:
           {% set result = get_next_run('garden_sprinklers_dry_lawns') %}
           {{ result.isoformat() if result is not none else none }}
 
+  # Flag for each program if any of the stations for a programme were started by HASS,
+  # useful to show status 'Pending' while opensprinkler starts them which takes a few
+  # seconds
+  - binary_sensor:
+      - name: Garden Sprinklers Trees Pending
+        unique_id: garden_sprinklers_trees_program_pending
+        default_entity_id: binary_sensor.garden_sprinklers_trees_program_pending
+        auto_off: 15
+        state: >
+          {% if trigger.id == 'requested' %}
+            true
+          {% elif trigger.id == 'status_changed' %}
+            false
+          {% else %}
+            {{ this.state == 'on' }}
+          {% endif %}
+
+    triggers:
+      # Start command issued -> pending ON immediately
+      # (subject it coming from the expected entities, see condition below)
+      - trigger: event
+        event_type: call_service
+        event_data:
+          domain: opensprinkler
+          service: run_station
+        id: requested
+
+      # Controller reports actual running -> pending OFF
+      - trigger: state
+        entity_id: binary_sensor.garden_sprinklers_trees_station_status
+        from: "idle"
+        id: status_changed
+
+    conditions:
+      - condition: template
+        value_template: >
+          {% if trigger.id == 'requested' %}
+            {% set monitored = [
+              'switch.garden_sprinklers_trees_station_enabled'
+            ] %}
+            {% set entity = trigger.event.data.service_data.entity_id | default([]) %}
+            {% set requested = [entity] if entity is string else entity %}
+            {{ requested | select('in', monitored) | list | count > 0 }}
+          {% else %}
+            true
+          {% endif %}
+
+  - binary_sensor:
+      - name: Garden Sprinklers Veggies Pending
+        unique_id: garden_sprinklers_veggies_program_pending
+        default_entity_id: binary_sensor.garden_sprinklers_veggies_program_pending
+        auto_off: 15
+        state: >
+          {% if trigger.id == 'requested' %}
+            true
+          {% elif trigger.id == 'status_changed' %}
+            false
+          {% else %}
+            {{ this.state == 'on' }}
+          {% endif %}
+
+    triggers:
+      # Start command issued -> pending ON immediately
+      # (subject it coming from the expected entities, see condition below)
+      - trigger: event
+        event_type: call_service
+        event_data:
+          domain: opensprinkler
+          service: run_station
+        id: requested
+
+      # Controller reports actual running -> pending OFF
+      - trigger: state
+        entity_id: binary_sensor.garden_sprinklers_veggies_station_status
+        from: "idle"
+        id: status_changed
+
+    conditions:
+      - condition: template
+        value_template: >
+          {% if trigger.id == 'requested' %}
+            {% set monitored = [
+              'switch.garden_sprinklers_veggies_station_enabled'
+            ] %}
+            {% set entity = trigger.event.data.service_data.entity_id | default([]) %}
+            {% set requested = [entity] if entity is string else entity %}
+            {{ requested | select('in', monitored) | list | count > 0 }}
+          {% else %}
+            true
+          {% endif %}
+
+  - binary_sensor:
+      - name: Garden Sprinklers Lawns Pending
+        unique_id: garden_sprinklers_lawns_program_pending
+        default_entity_id: binary_sensor.garden_sprinklers_lawns_program_pending
+        auto_off: 15
+
+        state: >
+          {% if trigger.id == 'requested' %}
+            true
+          {% elif trigger.id == 'status_changed' %}
+            false
+          {% else %}
+            {{ this.state == 'on' }}
+          {% endif %}
+
+    triggers:
+      # Start command issued -> pending ON immediately
+      # (subject it coming from the expected entities, see condition below)
+      - trigger: event
+        event_type: call_service
+        event_data:
+          domain: opensprinkler
+          service: run_station
+        id: requested
+
+      # Controller has acknowledged one of our stations -> pending OFF
+      - trigger: state
+        entity_id:
+          - sensor.garden_sprinklers_front_lawn_station_status
+          - sensor.garden_sprinklers_lawn_left_1_station_status
+          - sensor.garden_sprinklers_lawn_left_2_station_status
+          - sensor.garden_sprinklers_lawn_mid_station_status
+          - sensor.garden_sprinklers_lawn_right_station_status
+        from: "idle"
+        id: status_changed
+
+    conditions:
+      - condition: template
+        value_template: >
+          {% if trigger.id == 'requested' %}
+            {% set monitored = [
+              'switch.garden_sprinklers_front_lawn_station_enabled',
+              'switch.garden_sprinklers_lawn_left_1_station_enabled',
+              'switch.garden_sprinklers_lawn_left_2_station_enabled',
+              'switch.garden_sprinklers_lawn_mid_station_enabled',
+              'switch.garden_sprinklers_lawn_right_station_enabled'
+            ] %}
+            {% set entity = trigger.event.data.service_data.entity_id | default([]) %}
+            {% set requested = [entity] if entity is string else entity %}
+            {{ requested | select('in', monitored) | list | count > 0 }}
+          {% else %}
+            true
+          {% endif %}
+
+
+  # Flag for each program if it is currently pending/runnong or inactive
+  # uses the stations belogning to the programme instead of the programme itseld
+  # because manually starting programmes would otherwise not be shown
   - binary_sensor:
       - name: "Garden Sprinklers: Trees Status"
         unique_id: garden_sprinklers_trees_program_status
@@ -311,11 +460,18 @@ template:
         attributes:
           running_text: >
             {% from 'opensprinkler-helpers.jinja' import remaining_time_text %}
-            {{ 
-              remaining_time_text(
-                'binary_sensor.garden_sprinklers_trees_station_running'
-              ) 
-            }}
+            {% 
+              if is_state('binary_sensor.garden_sprinklers_trees_program_pending', 'on')
+              or is_state('binary_sensor.garden_sprinklers_trees_program_running', 'on')
+              or is_state('binary_sensor.garden_sprinklers_trees_station_running', 'on')
+            %}
+              {% 
+                set text = remaining_time_text(
+                  'binary_sensor.garden_sprinklers_trees_station_running'
+                ) 
+              %}
+              {{ text if text | trim else 'Starting' }}
+            {% endif %}
           next_run: >
             {% from 'opensprinkler-helpers.jinja' import next_run_text %}
             {% set value = states('sensor.garden_sprinklers_trees_next_run') %}
@@ -343,11 +499,18 @@ template:
         attributes:
           running_text: >
             {% from 'opensprinkler-helpers.jinja' import remaining_time_text %}
-            {{ 
-              remaining_time_text(
-                'binary_sensor.garden_sprinklers_veggies_station_running'
-              ) 
-            }}
+            {% 
+              if is_state('binary_sensor.garden_sprinklers_veggies_program_pending', 'on')
+              or is_state('binary_sensor.garden_sprinklers_veggies_program_running', 'on')
+              or is_state('binary_sensor.garden_sprinklers_veggies_station_running', 'on')
+            %}
+              {% 
+                set text = remaining_time_text(
+                  'binary_sensor.garden_sprinklers_veggies_station_running'
+                ) 
+              %}
+              {{ text if text | trim else 'Starting' }}
+            {% endif %}
           next_run: >
             {% from 'opensprinkler-helpers.jinja' import next_run_text %}
             {% set value = states('sensor.garden_sprinklers_veggies_next_run') %}
@@ -379,15 +542,26 @@ template:
         attributes:
           running_text: >
             {% from 'opensprinkler-helpers.jinja' import remaining_time_text %}
-            {{ 
-              remaining_time_text(
-                'binary_sensor.garden_sprinklers_front_lawn_station_running',
-                'binary_sensor.garden_sprinklers_lawn_left_1_station_running',
-                'binary_sensor.garden_sprinklers_lawn_left_2_station_running',
-                'binary_sensor.garden_sprinklers_lawn_mid_station_running',
-                'binary_sensor.garden_sprinklers_lawn_right_station_running'
-              ) 
-            }}
+            {% 
+              if is_state('binary_sensor.garden_sprinklers_lawns_program_pending', 'on')
+              or is_state('binary_sensor.garden_sprinklers_lawns_program_running', 'on')
+              or is_state('binary_sensor.garden_sprinklers_front_lawn_station_running', 'on')
+              or is_state('binary_sensor.garden_sprinklers_lawn_left_1_station_running', 'on')
+              or is_state('binary_sensor.garden_sprinklers_lawn_left_2_station_running', 'on')
+              or is_state('binary_sensor.garden_sprinklers_lawn_mid_station_running', 'on')
+              or is_state('binary_sensor.garden_sprinklers_lawn_right_station_running', 'on')
+            %}
+              {% 
+                set text = remaining_time_text(
+                  'binary_sensor.garden_sprinklers_front_lawn_station_running',
+                  'binary_sensor.garden_sprinklers_lawn_left_1_station_running',
+                  'binary_sensor.garden_sprinklers_lawn_left_2_station_running',
+                  'binary_sensor.garden_sprinklers_lawn_mid_station_running',
+                  'binary_sensor.garden_sprinklers_lawn_right_station_running'
+                ) 
+              %}
+              {{ text if text | trim else 'Starting' }}
+            {% endif %}
           next_run: >
             {% from 'opensprinkler-helpers.jinja' import next_run_text %}
             {% set value = states('sensor.garden_sprinklers_lawns_next_run') %}
