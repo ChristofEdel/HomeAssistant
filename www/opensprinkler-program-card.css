@@ -77,6 +77,29 @@ ha-card {
   text-align: right;
 }
 
+.station-duration-control {
+  display: grid;
+  grid-template-columns: minmax(160px, 280px) 56px;
+  gap: 10px;
+  align-items: center;
+}
+
+.station-duration-slider {
+  width: 280px;
+  max-width: 40vw;
+  margin: 0;
+  accent-color: var(--primary-color);
+}
+
+.station-duration-value {
+  min-width: 56px;
+  color: var(--secondary-text-color);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .date-control,
 .time-control {
   padding: 0 8px;
@@ -164,6 +187,10 @@ ha-card {
   font-weight: 600;
 }
 
+.time-control:disabled::-webkit-datetime-edit {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
 
 .missing {
   max-width: 260px;
@@ -229,6 +256,20 @@ ha-card {
   .select-control {
     min-width: 130px;
     max-width: 170px;
+  }
+
+  .station-duration-control {
+    grid-template-columns: minmax(100px, 1fr) 50px;
+    width: 210px;
+  }
+
+  .station-duration-slider {
+    width: 100%;
+    max-width: none;
+  }
+
+  .station-duration-value {
+    min-width: 50px;
   }
 
   .missing {

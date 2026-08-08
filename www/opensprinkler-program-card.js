@@ -1,7 +1,14 @@
-const OPENSPRINKLER_PROGRAM_CARD_VERSION = "1.5.1";
+const OPENSPRINKLER_PROGRAM_CARD_VERSION = "1.5.13";
 const OPENSPRINKLER_PROGRAM_CARD_CSS_URL = new URL("./opensprinkler-program-card.css", import.meta.url);
 OPENSPRINKLER_PROGRAM_CARD_CSS_URL.searchParams.set("v", OPENSPRINKLER_PROGRAM_CARD_VERSION);
 const OPENSPRINKLER_PROGRAM_CARD_CSS = OPENSPRINKLER_PROGRAM_CARD_CSS_URL.href;
+
+const STATION_DURATION_STOPS = Object.freeze([
+  0,
+  ...Array.from({ length: 15 }, (_, index) => index + 1),
+  ...Array.from({ length: 9 }, (_, index) => 20 + index * 5),
+  ...Array.from({ length: 8 }, (_, index) => 75 + index * 15),
+]);
 
 class OpenSprinklerProgramCard extends HTMLElement {
   constructor() {
@@ -230,7 +237,23 @@ class OpenSprinklerProgramCard extends HTMLElement {
         section: "programme",
         entityId: p("time", "start_time"),
         kind: "time",
-        label: "Start time",
+        label: "Start times",
+      },
+      {
+        key: "start1_time",
+        section: "programme",
+        entityId: p("time", "start1_time"),
+        kind: "time",
+        label: "",
+        secondaryStartTime: true,
+      },
+      {
+        key: "start1_time_offset_type",
+        section: "programme",
+        entityId: p("select", "start1_time_offset_type"),
+        kind: "offset_type",
+        label: "",
+        secondaryStartTimeOffset: true,
       },
       ...this._stations().map(({ station, name }) => ({
         key: `station_${station}`,
@@ -268,6 +291,7 @@ class OpenSprinklerProgramCard extends HTMLElement {
       }
 
       case "select":
+      case "offset_type":
       case "date":
         return stateObj.state;
 
@@ -365,6 +389,29 @@ class OpenSprinklerProgramCard extends HTMLElement {
       .replaceAll("'", "&#039;");
   }
 
+  _stationDurationStopIndex(value) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return 0;
+
+    const exactIndex = STATION_DURATION_STOPS.indexOf(numericValue);
+    if (exactIndex !== -1) return exactIndex;
+
+    return STATION_DURATION_STOPS.reduce((bestIndex, stop, index) =>
+      Math.abs(stop - numericValue) < Math.abs(STATION_DURATION_STOPS[bestIndex] - numericValue)
+        ? index
+        : bestIndex, 0);
+  }
+
+  _formatStationDuration(value) {
+    const minutes = Number(value);
+    if (!Number.isFinite(minutes)) return "";
+    if (minutes === 0) return "Off";
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}m`;
+  }
+
   _renderControl(def) {
     const stateObj = this._hass?.states?.[def.entityId];
     if (!stateObj) {
@@ -398,6 +445,33 @@ class OpenSprinklerProgramCard extends HTMLElement {
     }
 
     if (def.kind === "number") {
+      if (def.section === "stations" && def.station) {
+        const stopIndex = this._stationDurationStopIndex(value);
+        const duration = STATION_DURATION_STOPS[stopIndex];
+        const durationText = this._formatStationDuration(duration);
+
+        return `
+          <div class="station-duration-control">
+            <input
+              class="station-duration-slider"
+              type="range"
+              data-key="${this._escapeHtml(def.key)}"
+              data-station-duration="true"
+              min="0"
+              max="${STATION_DURATION_STOPS.length - 1}"
+              step="1"
+              value="${stopIndex}"
+              aria-label="${this._escapeHtml(def.label)} duration"
+              aria-valuetext="${this._escapeHtml(durationText)}"
+            >
+            <span
+              class="station-duration-value"
+              data-station-duration-value="${this._escapeHtml(def.key)}"
+            >${this._escapeHtml(durationText)}</span>
+          </div>
+        `;
+      }
+
       let min = stateObj.attributes.min;
       let max = stateObj.attributes.max;
       let step = stateObj.attributes.step ?? "any";
@@ -460,6 +534,57 @@ class OpenSprinklerProgramCard extends HTMLElement {
     return "";
   }
 
+  _renderSecondaryStartTimeRow(timeDef, offsetDef) {
+    if (!timeDef || !offsetDef) return "";
+
+    const timeStateObj = this._hass?.states?.[timeDef.entityId];
+    const offsetStateObj = this._hass?.states?.[offsetDef.entityId];
+
+    if (!timeStateObj || !offsetStateObj) {
+      const missing = [
+        !timeStateObj ? timeDef.entityId : null,
+        !offsetStateObj ? offsetDef.entityId : null,
+      ].filter(Boolean);
+
+      return `
+        <div class="entity-row">
+          <div class="entity-name"></div>
+          <div class="entity-control">
+            <span class="missing">Missing: ${this._escapeHtml(missing.join(", "))}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    const enabled = this._draft?.[offsetDef.key] === "Midnight";
+    const timeValue = this._draft?.[timeDef.key];
+
+    return `
+      <div class="entity-row">
+        <div class="entity-name"></div>
+        <div class="entity-control">
+          <div class="number-wrap">
+            <input
+              type="checkbox"
+              data-key="${this._escapeHtml(offsetDef.key)}"
+              data-offset-toggle="true"
+              aria-label="Enable second start time"
+              ${enabled ? "checked" : ""}
+            >
+            <input
+              class="time-control"
+              type="time"
+              step="60"
+              data-key="${this._escapeHtml(timeDef.key)}"
+              value="${this._escapeHtml(timeValue)}"
+              ${enabled ? "" : "disabled"}
+            >
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   _renderRow(def) {
     if (!this._isVisible(def)) return "";
 
@@ -519,6 +644,13 @@ class OpenSprinklerProgramCard extends HTMLElement {
             if (def.key === "restrictions") {
               return `${this._renderWeekdays()}${this._renderRow(def)}`;
             }
+            if (def.secondaryStartTimeOffset) {
+              return "";
+            }
+            if (def.secondaryStartTime) {
+              const offsetDef = programmeDefs.find((item) => item.secondaryStartTimeOffset);
+              return this._renderSecondaryStartTimeRow(def, offsetDef);
+            }
             return this._renderRow(def);
           })
           .join("")}
@@ -541,7 +673,7 @@ class OpenSprinklerProgramCard extends HTMLElement {
 
     this.shadowRoot.querySelectorAll("[data-key]").forEach((element) => {
       element.addEventListener("change", (event) => this._handleChange(event));
-      if (element.matches('input[type="number"]')) {
+      if (element.matches('input[type="number"], input[data-station-duration]')) {
         element.addEventListener("input", (event) => this._handleChange(event));
       }
     });
@@ -568,8 +700,21 @@ class OpenSprinklerProgramCard extends HTMLElement {
     if (!def) return;
 
     let value;
-    if (def.kind === "switch") {
+    if (def.kind === "offset_type") {
+      value = element.checked ? "Midnight" : "Disabled";
+    } else if (def.kind === "switch") {
       value = element.checked;
+    } else if (element.matches('input[data-station-duration]')) {
+      const stopIndex = element.valueAsNumber;
+      value = STATION_DURATION_STOPS[stopIndex];
+      if (value === undefined) return;
+
+      const durationText = this._formatStationDuration(value);
+      element.setAttribute("aria-valuetext", durationText);
+      const valueElement = this.shadowRoot?.querySelector(
+        `[data-station-duration-value="${key}"]`,
+      );
+      if (valueElement) valueElement.textContent = durationText;
     } else if (def.kind === "number") {
       if (element.value === "") return;
       value = element.valueAsNumber;
@@ -582,7 +727,7 @@ class OpenSprinklerProgramCard extends HTMLElement {
     this._saveError = "";
 
     // Schedule type changes which rows are visible, so rebuild the form.
-    if (key === "type") {
+    if (key === "type" || key === "start1_time_offset_type") {
       this._render();
     } else {
       this._updateActionButtons();
@@ -680,6 +825,7 @@ class OpenSprinklerProgramCard extends HTMLElement {
         return this._hass.callService("switch", value ? "turn_on" : "turn_off", { entity_id });
 
       case "select":
+      case "offset_type":
         return this._hass.callService("select", "select_option", {
           entity_id,
           option: value,
@@ -775,6 +921,26 @@ class OpenSprinklerProgramCard extends HTMLElement {
     addChanged("restrictions");
     addChanged("start_time");
 
+    // OpenSprinkler requires the additional-start-time mode to be Fixed before
+    // the secondary start-time fields are written. Reassert it only when the
+    // entity exists and is not already Fixed. This prerequisite is confirmed
+    // by the normal sequential save loop before the start1 fields are reached.
+    const additionalStartTimeTypeDef = {
+      key: "additional_start_time_type_prerequisite",
+      section: "programme",
+      entityId: "select.garden_sprinklers_trees_additional_start_time_type",
+      kind: "select",
+    };
+    if (this._hass.states[additionalStartTimeTypeDef.entityId]?.state !== "Fixed") {
+      add(additionalStartTimeTypeDef, "Fixed", false);
+    }
+
+    // The secondary start-time mode must be enabled and confirmed before
+    // writing its time. OpenSprinkler ignores/rejects the start1 time while
+    // the offset type is Disabled, which otherwise requires a second Save.
+    addChanged("start1_time_offset_type");
+    addChanged("start1_time");
+
     // Station cleanup and visible station edits operate on the same programme.
     // Reset omitted stations first, then apply the user's visible station
     // values so their explicit choices are the final station writes.
@@ -794,6 +960,19 @@ class OpenSprinklerProgramCard extends HTMLElement {
 
   async _save() {
     if (!this._hass || !this._isDirty() || this._saving) return;
+
+    // If the optional second start time is enabled, OpenSprinkler expects the
+    // start times in chronological order. Normalize the draft before deriving
+    // the change list so swapped values are included in this same Save.
+    if (this._draft?.start1_time_offset_type === "Midnight") {
+      const firstStart = String(this._draft.start_time ?? "");
+      const secondStart = String(this._draft.start1_time ?? "");
+
+      if (firstStart && secondStart && secondStart < firstStart) {
+        this._draft.start_time = secondStart;
+        this._draft.start1_time = firstStart;
+      }
+    }
 
     const changes = this._definitions.filter((def) => {
       if (!this._hass.states[def.entityId]) return false;
