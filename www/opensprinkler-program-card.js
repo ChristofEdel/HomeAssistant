@@ -1,4 +1,4 @@
-const OPENSPRINKLER_PROGRAM_CARD_VERSION = "1.5.13";
+const OPENSPRINKLER_PROGRAM_CARD_VERSION = "1.5.14";
 const OPENSPRINKLER_PROGRAM_CARD_CSS_URL = new URL("./opensprinkler-program-card.css", import.meta.url);
 OPENSPRINKLER_PROGRAM_CARD_CSS_URL.searchParams.set("v", OPENSPRINKLER_PROGRAM_CARD_VERSION);
 const OPENSPRINKLER_PROGRAM_CARD_CSS = OPENSPRINKLER_PROGRAM_CARD_CSS_URL.href;
@@ -588,8 +588,13 @@ class OpenSprinklerProgramCard extends HTMLElement {
   _renderRow(def) {
     if (!this._isVisible(def)) return "";
 
+    const rowClass =
+      def.section === "stations" && def.station
+        ? "entity-row station-duration-row"
+        : "entity-row";
+
     return `
-      <div class="entity-row">
+      <div class="${rowClass}">
         <div class="entity-name">${this._escapeHtml(def.label)}</div>
         <div class="entity-control">${this._renderControl(def)}</div>
       </div>

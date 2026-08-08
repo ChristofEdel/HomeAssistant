@@ -1,9 +1,10 @@
-/* opensprinkler-program-card v1.2.0 */
+/* opensprinkler-program-card shared CSS v1.5.14 */
 
 :host {
   display: block;
   color: var(--primary-text-color);
   font-family: var(--paper-font-body1_-_font-family, inherit);
+  container-type: inline-size;
 }
 
 ha-card {
@@ -77,16 +78,27 @@ ha-card {
   text-align: right;
 }
 
+.station-duration-row {
+  grid-template-columns: minmax(80px, 1fr) minmax(160px, 346px);
+}
+
+.station-duration-row .entity-control {
+  width: 100%;
+}
+
 .station-duration-control {
   display: grid;
-  grid-template-columns: minmax(160px, 280px) 56px;
+  grid-template-columns: minmax(0, 1fr) 56px;
   gap: 10px;
   align-items: center;
+  width: 100%;
+  min-width: 0;
 }
 
 .station-duration-slider {
-  width: 280px;
-  max-width: 40vw;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
   margin: 0;
   accent-color: var(--primary-color);
 }
@@ -103,6 +115,11 @@ ha-card {
 .date-control,
 .time-control {
   padding: 0 8px;
+}
+
+.time-control:disabled::-webkit-datetime-edit {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
 }
 
 .unit {
@@ -187,10 +204,6 @@ ha-card {
   font-weight: 600;
 }
 
-.time-control:disabled::-webkit-datetime-edit {
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-}
 
 .missing {
   max-width: 260px;
@@ -258,21 +271,37 @@ ha-card {
     max-width: 170px;
   }
 
-  .station-duration-control {
-    grid-template-columns: minmax(100px, 1fr) 50px;
-    width: 210px;
+  .missing {
+    max-width: 170px;
+  }
+}
+
+
+@container (max-width: 360px) {
+  .station-duration-row {
+    grid-template-columns: minmax(70px, 1fr) minmax(0, 1.5fr);
+    gap: 10px;
   }
 
-  .station-duration-slider {
-    width: 100%;
-    max-width: none;
+  .station-duration-control {
+    grid-template-columns: minmax(0, 1fr) 50px;
+    gap: 8px;
   }
 
   .station-duration-value {
     min-width: 50px;
   }
+}
 
-  .missing {
-    max-width: 170px;
+@container (max-width: 240px) {
+  .station-duration-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .station-duration-row .entity-control {
+    justify-content: stretch;
   }
 }
