@@ -130,6 +130,25 @@ sections:
               - 2
               - 3
             inverseOrder: true
+            
+      - type: markdown
+        content: >-
+          {%- set limit = states('sensor.battery_control_charge_limit') -%} {%- set
+          target = states('sensor.battery_control_charge_target') -%}
+
+          {%- if limit not in ['unavailable', 'unknown'] %}
+            {{- '**Limit**: ' ~ limit ~ '% (' ~ state_attr('sensor.battery_control_charge_limit', 'reason') ~ ')' -}}
+          {%- endif -%}
+
+          {%- if limit not in ['unavailable', 'unknown']
+                and target not in ['unavailable', 'unknown'] %}
+            {{- '&nbsp;&nbsp;' -}}
+          {%- endif -%}
+
+          {%- if target not in ['unavailable', 'unknown'] %}
+            {{- '**Target**: ' ~ target ~ '% (' ~ state_attr('sensor.battery_control_charge_target', 'reason') ~ ')' -}}
+          {%- endif -%}
+        text_only: true
 
       # Grid power
       - type: heading
