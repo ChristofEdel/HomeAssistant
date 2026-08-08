@@ -310,7 +310,7 @@ template:
           }}
         attributes:
           running_text: >
-            {% from 'opensprinkler-helpers.jinja' import remaining_time %}
+            {% from 'opensprinkler-helpers.jinja' import remaining_time_text %}
             {{ 
               remaining_time_text(
                 'binary_sensor.garden_sprinklers_trees_station_running'
@@ -342,7 +342,7 @@ template:
           }}
         attributes:
           running_text: >
-            {% from 'opensprinkler-helpers.jinja' import remaining_time %}
+            {% from 'opensprinkler-helpers.jinja' import remaining_time_text %}
             {{ 
               remaining_time_text(
                 'binary_sensor.garden_sprinklers_veggies_station_running'
@@ -378,10 +378,14 @@ template:
           }}
         attributes:
           running_text: >
-            {% from 'opensprinkler-helpers.jinja' import remaining_time %}
+            {% from 'opensprinkler-helpers.jinja' import remaining_time_text %}
             {{ 
               remaining_time_text(
-                'binary_sensor.garden_sprinklers_lawn_left_1_station_running'
+                'binary_sensor.garden_sprinklers_front_lawn_station_running',
+                'binary_sensor.garden_sprinklers_lawn_left_1_station_running',
+                'binary_sensor.garden_sprinklers_lawn_left_2_station_running',
+                'binary_sensor.garden_sprinklers_lawn_mid_station_running',
+                'binary_sensor.garden_sprinklers_lawn_right_station_running'
               ) 
             }}
           next_run: >

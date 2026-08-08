@@ -6,7 +6,7 @@
   {% set restriction   = states('select.' ~ program ~ '_restrictions') %}
 
   {# Basic checkes - disabled, no schedule or no time --> no next run #}
-  {% if not enabled 
+  {% if not enabled
         or schedule_type not in ['Weekly', 'Monthly', 'Interval', 'Single-run']
         or start_time in ['unknown', 'unavailable'] %}
     {% do returns(none) %}
@@ -26,7 +26,7 @@
     {% set monthly_day      = states('number.' ~ program ~ '_day_of_month') | int(0) %}
     {% set interval_days    = states('number.' ~ program ~ '_interval_days') | int(0) %}
     {% set starting_in_days = states('number.' ~ program ~ '_starting_in_days') | int(0) %}
-    {% set single_run_date  = states('date.' ~ program ~ '_single_run_start_date') | as_datetime %}  
+    {% set single_run_date  = states('date.' ~ program ~ '_single_run_start_date') | as_datetime %}
 
     {% set ns = namespace(next_run = none) %}
 
@@ -39,8 +39,8 @@
         {% set schedule_match = is_state(weekdays[candidate.weekday()], 'on') %}
 
       {% elif schedule_type == 'Monthly' %}
-        {% set schedule_match = 
-            candidate.day == monthly_day 
+        {% set schedule_match =
+            candidate.day == monthly_day
             or (monthly_day == 0 and (candidate + timedelta(days=1)).day == 1)
       %}
 
@@ -83,21 +83,55 @@
 
 {% endmacro %}
 
-{% macro remaining_time_text(station_entity) -%}
-  {% if is_state(station_entity, 'on') %}
-    {% set end = state_attr(station_entity, 'end_time') %}
-    {% if end %}
-      {% set s = [0, (as_timestamp(end) - as_timestamp(now())) | int] | max %}
-      {% if s < 60 %}
-        {{ s }} seconds remaining
-      {% elif s < 180 %}
-        {{ s // 60 }}:{{ '%02d' | format(s % 60) }} minutes remaining
+{% macro remaining_time_text() -%}
+
+  {# Collect station data
+  ## ns.total_runtime         - the total remaining runtime of all stations
+  ## ns.running               - if at least one of the stations is running
+  ## ns.runtime_not_available - if the currently running station has no reported runtime
+  #}
+  {% set ns = namespace(total_runtime=0, runtime_not_available=false, running=false) %}
+
+  {% for station_entity in varargs %}
+
+    {# Running station - add remaining runtime to total#}
+    {% if is_state(station_entity, 'on') %}
+      {% set ns.running = true %}
+      {% set end = state_attr(station_entity, 'end_time') %}
+      {% if end %}
+        {% set s = [0, (as_timestamp(end) - as_timestamp(now())) | int] | max %}
+        {% set ns.total_runtime = ns.total_runtime + s %}
       {% else %}
-        {{ (s + 59) // 60 }} minutes remaining
+        {% set ns.runtime_not_available = true %}
       {% endif %}
+
+    {# Stopped station - add total runtime to total #}
     {% else %}
-      Running
+      {% set start = state_attr(station_entity, 'start_time') %}
+      {% set end = state_attr(station_entity, 'end_time') %}
+      {% if start and end %}
+        {% set s = [0, (as_timestamp(end) - as_timestamp(start)) | int] | max %}
+        {% set ns.total_runtime = ns.total_runtime + s %}
+      {% endif %}
     {% endif %}
+
+  {% endfor %}
+
+  {% if not ns.running %}
+    {% if ns.total_runtime %}
+      {% set minutes = (ns.total_runtime + 59) // 60 %}
+      Pending ({{ minutes }} {{ 'minute' if minutes == 1 else 'minutes' }})
+    {% else %}
+      {# nothing #}
+    {% endif %}
+  {% elif ns.runtime_not_available %}
+    Running
+  {% elif ns.total_runtime < 60 %}
+    {{ ns.total_runtime }} seconds remaining
+  {% elif ns.total_runtime < 180 %}
+    {{ ns.total_runtime // 60 }} min {{ ns.total_runtime % 60 }} sec remaining
+  {% else %}
+    {{ (ns.total_runtime + 59) // 60 }} minutes remaining
   {% endif %}
 {%- endmacro %}
 
