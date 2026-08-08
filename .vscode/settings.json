@@ -2,13 +2,32 @@
   "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
   "python.analysis.autoImportCompletions": true,
   "python.analysis.typeCheckingMode": "basic",
-
   "explorer.excludeGitIgnore": true,
-
   "files.exclude": {
     // ".cache/": true,
     // ".cloud/": true,
     // "**/tmp": true,
     // "**/dist": true
+  },
+
+  "files.associations": {
+    "*.jinja": "jinja",
+    "*.yaml": "home-assistant",
+    "compose.yml": "yaml",
+    "compose.yaml": "yaml",
+    "compose.*.yml": "yaml",
+    "compose.*.yaml": "yaml",
+    "docker-compose.yml": "yaml",
+    "docker-compose.yaml": "yaml",
+    "docker-compose.*.yml": "yaml",
+    "docker-compose.*.yaml": "yaml",
+    "esphome/**/*.yml": "esphome",
+    "esphome/**/*.yaml": "esphome"
+  },
+
+  "[jinja]": {
+    "editor.insertSpaces": true,
+    "editor.tabSize": 2,
+    "editor.detectIndentation": false
   }
 }
