@@ -1,0 +1,72 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Climatiseur Mitsubishi",
+        "description": "Configurez votre climatiseur Mitsubishi MAC-577IF-2E. La clé de chiffrement par défaut « unregistered » fonctionne pour la plupart des appareils. Ne la modifiez que si votre appareil utilise une clé personnalisée.",
+        "data": {
+          "host": "Adresse IP",
+          "encryption_key": "Clé de chiffrement (par défaut : unregistered)",
+          "admin_username": "Nom d'utilisateur administrateur (par défaut : admin)",
+          "admin_password": "Mot de passe administrateur (par défaut : me1debug@0567)",
+          "scan_interval": "Intervalle de mise à jour (secondes, 1-300)",
+          "experimental_features": "Activer les fonctionnalités expérimentales"
+        },
+        "data_description": {
+          "experimental_features": "Active les fonctionnalités expérimentales comme la prise en charge d'un capteur de température externe. Ces fonctionnalités peuvent évoluer ou être retirées dans de futures versions."
+        }
+      },
+      "experimental": {
+        "title": "Configuration des fonctionnalités expérimentales",
+        "description": "⚠️ ATTENTION : si votre serveur Home Assistant devient hors-ligne ou perd la connectivité réseau avec le climatiseur alors que le mode température à distance est actif, le climatiseur continuera à utiliser indéfiniment la dernière température reçue. L'intégration bascule automatiquement sur le capteur interne si votre capteur externe devient indisponible ou renvoie des valeurs invalides pendant que HA fonctionne.",
+        "data": {
+          "external_temperature_entity": "Capteur de température externe"
+        },
+        "data_description": {
+          "external_temperature_entity": "Sélectionnez un capteur de température à utiliser comme température de la pièce lorsque le mode 'A distance' est sélectionné. Laissez vide pour n'utiliser que le capteur interne."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Échec de la connexion au climatiseur. Vérifiez l'adresse IP, la clé de chiffrement et assurez-vous que l'appareil est accessible sur votre réseau.",
+      "unknown": "Une erreur inattendue s'est produite. Veuillez réessayer."
+    },
+    "abort": {
+      "already_configured": "L'appareil est déjà configuré."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Reconfigurer le climatiseur Mitsubishi",
+        "description": "Mettez à jour les paramètres de configuration de votre climatiseur Mitsubishi. Les modifications seront appliquées après validation et l'intégration sera rechargée.",
+        "data": {
+          "host": "Adresse IP",
+          "encryption_key": "Clé de chiffrement (par défaut : unregistered)",
+          "admin_username": "Nom d'utilisateur administrateur (par défaut : admin)",
+          "admin_password": "Mot de passe administrateur (par défaut : me1debug@0567)",
+          "scan_interval": "Intervalle de mise à jour (secondes, 1-300)",
+          "enable_capability_detection": "Activer la détection des capacités",
+          "experimental_features": "Activer les fonctionnalités expérimentales"
+        },
+        "data_description": {
+          "experimental_features": "Active les fonctionnalités expérimentales comme la prise en charge d'un capteur de température externe. Ces fonctionnalités peuvent évoluer ou être retirées dans de futures versions."
+        }
+      },
+      "experimental": {
+        "title": "Configuration des fonctionnalités expérimentales",
+        "description": "⚠️ ATTENTION : si votre serveur Home Assistant devient hors-ligne ou perd la connectivité réseau avec le climatiseur alors que le mode température à distance est actif, le climatiseur continuera à utiliser indéfiniment la dernière température reçue. L'intégration bascule automatiquement sur le capteur interne si votre capteur externe devient indisponible ou renvoie des valeurs invalides pendant que HA fonctionne.",
+        "data": {
+          "external_temperature_entity": "Capteur de température externe"
+        },
+        "data_description": {
+          "external_temperature_entity": "Sélectionnez un capteur de température à utiliser comme température de la pièce lorsque le mode 'A distance' est sélectionné. Laissez vide pour n'utiliser que le capteur interne."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Échec de la connexion au climatiseur. Vérifiez l'adresse IP, la clé de chiffrement et assurez-vous que l'appareil est accessible sur votre réseau.",
+      "unknown": "Une erreur inattendue s'est produite. Veuillez réessayer."
+    }
+  }
+}

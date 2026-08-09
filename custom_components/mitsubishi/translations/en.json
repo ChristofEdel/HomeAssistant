@@ -1,0 +1,72 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Mitsubishi Air Conditioner",
+        "description": "Configure your Mitsubishi MAC-577IF-2E air conditioner. The encryption key defaults to 'unregistered' which works for most devices. Only change this if your device uses a custom key.",
+        "data": {
+          "host": "IP Address",
+          "encryption_key": "Encryption Key (default: unregistered)",
+          "admin_username": "Admin Username (default: admin)",
+          "admin_password": "Admin Password (default: me1debug@0567)",
+          "scan_interval": "Update Interval (seconds, 1-300)",
+          "experimental_features": "Enable experimental features"
+        },
+        "data_description": {
+          "experimental_features": "Enable experimental features like remote temperature sensor support. These features may change or be removed in future versions."
+        }
+      },
+      "experimental": {
+        "title": "Experimental Features Configuration",
+        "description": "⚠️ WARNING: If your Home Assistant server goes offline or loses network connectivity to the AC while using remote temperature mode, the AC will continue using the last received temperature indefinitely. The integration will automatically fall back to the internal sensor if your external sensor becomes unavailable or provides invalid readings while HA is running.",
+        "data": {
+          "external_temperature_entity": "External Temperature Sensor"
+        },
+        "data_description": {
+          "external_temperature_entity": "Select a temperature sensor to use as the room temperature when Remote mode is selected. Leave empty to only use the internal sensor."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the air conditioner. Please check the IP address, encryption key, and ensure the device is accessible on your network.",
+      "unknown": "Unexpected error occurred. Please try again."
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Reconfigure Mitsubishi Air Conditioner",
+        "description": "Update the configuration settings for your Mitsubishi AC. Changes will be applied after validation and the integration will be reloaded.",
+        "data": {
+          "host": "IP Address",
+          "encryption_key": "Encryption Key (default: unregistered)",
+          "admin_username": "Admin Username (default: admin)",
+          "admin_password": "Admin Password (default: me1debug@0567)",
+          "scan_interval": "Update Interval (seconds, 1-300)",
+          "enable_capability_detection": "Enable capability detection",
+          "experimental_features": "Enable experimental features"
+        },
+        "data_description": {
+          "experimental_features": "Enable experimental features like remote temperature sensor support. These features may change or be removed in future versions."
+        }
+      },
+      "experimental": {
+        "title": "Experimental Features Configuration",
+        "description": "⚠️ WARNING: If your Home Assistant server goes offline or loses network connectivity to the AC while using remote temperature mode, the AC will continue using the last received temperature indefinitely. The integration will automatically fall back to the internal sensor if your external sensor becomes unavailable or provides invalid readings while HA is running.",
+        "data": {
+          "external_temperature_entity": "External Temperature Sensor"
+        },
+        "data_description": {
+          "external_temperature_entity": "Select a temperature sensor to use as the room temperature when Remote mode is selected. Leave empty to only use the internal sensor."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the air conditioner. Please check the IP address, encryption key, and ensure the device is accessible on your network.",
+      "unknown": "Unexpected error occurred. Please try again."
+    }
+  }
+}
