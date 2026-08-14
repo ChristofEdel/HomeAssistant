@@ -380,7 +380,7 @@ modbus:
 
     switches:
       - name: "MHRV Boost"
-        unique_id: blauberg_s21_boost
+        unique_id: mhrv_boost
         slave: 1
         address: 13
         write_type: coil
@@ -392,6 +392,14 @@ modbus:
           state_off: 0
         scan_interval: 5
 
-
-
-
+script:
+  mhrv_filter_timer_reset:
+    alias: "MHRV Filter Timer Reset"
+    icon: mdi:air-filter
+    sequence:
+      - action: modbus.write_coil
+        data:
+          hub: mhrv
+          slave: 1
+          address: 17
+          state: true
