@@ -1,0 +1,59 @@
+command_line:
+  - sensor:
+      name: "Backup Size - PSST"
+      unique_id: backup_size_psst
+      command: "du -sb '/media/nas_shared_folders/Backup/PSST' | cut -f1"
+      unit_of_measurement: "B"
+      device_class: data_size
+      state_class: measurement
+      scan_interval: 300
+      value_template: "{{ value | int }}"
+
+  - sensor:
+      name: "Backup Size - Rainbow One"
+      unique_id: backup_size_rainbow_one
+      command: "du -sb '/media/nas_shared_folders/Backup/Rainbow One' | cut -f1"
+      unit_of_measurement: "B"
+      device_class: data_size
+      state_class: measurement
+      scan_interval: 300
+      value_template: "{{ value | int }}"
+
+  - sensor:
+      name: "Backup Size - Miniflash"
+      unique_id: backup_size_miniflash
+      command: "du -sb '/media/nas_shared_folders/Backup/Miniflash' | cut -f1"
+      unit_of_measurement: "B"
+      device_class: data_size
+      state_class: measurement
+      scan_interval: 300
+      value_template: "{{ value | int }}"
+
+template:
+  - sensor:
+      - name: "Backup Size - PSST (GB)"
+        unique_id: backup_size_psst_gb
+        default_entity_id: sensor.backup_size_psst_gb
+        device_class: data_size
+        state_class: measurement
+        unit_of_measurement: "GiB"
+        state: >
+          {{ (states('sensor.backup_size_psst') | float(0) / 1073741824) | round(2) }}
+
+      - name: "Backup Size - Rainbow One (GB)"
+        unique_id: backup_size_rainbow_one_gb
+        default_entity_id: sensor.backup_size_rainbow_one_gb
+        device_class: data_size
+        state_class: measurement
+        unit_of_measurement: "GiB"
+        state: >
+          {{ (states('sensor.backup_size_rainbow_one') | float(0) / 1073741824) | round(2) }}
+
+      - name: "Backup Size - Miniflash (GB)"
+        unique_id: backup_size_miniflash_gb
+        default_entity_id: sensor.backup_size_miniflash_gb
+        device_class: data_size
+        state_class: measurement
+        unit_of_measurement: "GiB"
+        state: >
+          {{ (states('sensor.backup_size_miniflash') | float(0) / 1073741824) | round(2) }}
