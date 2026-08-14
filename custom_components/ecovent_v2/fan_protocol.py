@@ -387,6 +387,13 @@ class FanProtocolMixin:
             backoff.pop(param_id, None)
         return True
 
+    def _unsupported_optional_poll_param_ids(self):
+        unsupported = getattr(self, "_unsupported_optional_poll_params", None)
+        if unsupported is None:
+            unsupported = set()
+            self._unsupported_optional_poll_params = unsupported
+        return unsupported
+
     def _read_params(self, request, *, required_params=None, read_name="custom read"):
         """Read parameters without trusting a valid but incomplete bulk reply.
 
@@ -402,8 +409,22 @@ class FanProtocolMixin:
         requested_params = _request_param_ids(request)
         if required_params is None:
             required_param_ids = requested_params
+            ignored_optional_params = set()
         else:
             required_param_ids = requested_params & set(required_params)
+            ignored_optional_params = (
+                (requested_params - required_param_ids)
+                & self._unsupported_optional_poll_param_ids()
+            )
+            if ignored_optional_params:
+                request = "".join(
+                    param
+                    for param in (
+                        request[i : i + 4] for i in range(0, len(request), 4)
+                    )
+                    if int(param, 16) not in ignored_optional_params
+                )
+                requested_params = _request_param_ids(request)
         complete = bool(request)
         received_response = False
         missing_required_params = set()
@@ -454,6 +475,8 @@ class FanProtocolMixin:
                         self._mark_param_available_for_retry(param_id)
                     for param_id in unsupported_ids:
                         unsupported_params.add(param_id)
+                        if param_id not in required_param_ids:
+                            self._unsupported_optional_poll_param_ids().add(param_id)
                         mark_unavailable(param_id, delay_optional_retry=True)
                     missing = [
                         param
@@ -504,6 +527,8 @@ class FanProtocolMixin:
                 received_response = param_complete or received_response
                 if param_complete and param_id in unsupported_ids:
                     unsupported_params.add(param_id)
+                    if param_id not in required_param_ids:
+                        self._unsupported_optional_poll_param_ids().add(param_id)
                     mark_unavailable(param_id, delay_optional_retry=True)
                     continue
                 if param_complete and response_ids is not None:
@@ -526,6 +551,13 @@ class FanProtocolMixin:
         self._last_missing_required_params = frozenset(missing_required_params)
         self._last_missing_optional_params = frozenset(missing_optional_params)
         self._last_unsupported_params = frozenset(unsupported_params)
+        # Profiles with no universally stable availability row (currently
+        # Vento) still need evidence that the controller returned at least one
+        # requested parameter. A transport-level success alone can be an empty
+        # or untracked response and must not keep a dead device available.
+        if required_params is not None and not required_param_ids:
+            complete = complete and bool(received_params)
+        available = complete and received_response
         if missing_required_params or missing_optional_params or unsupported_params:
             log_level = logging.WARNING if missing_required_params else logging.DEBUG
             _LOGGER.log(
@@ -534,6 +566,7 @@ class FanProtocolMixin:
                 "required availability parameters: %s; received parameters: %s; "
                 "missing required parameters: %s; optional unavailable parameters: %s; "
                 "unsupported parameters: %s; missing from bulk response: %s; "
+                "ignored unsupported optional parameters: %s; "
                 "individual retries attempted: %s; "
                 "no-response individual retries: %s; untracked valid bulk chunks: %d; "
                 "result: %s",
@@ -546,12 +579,13 @@ class FanProtocolMixin:
                 _format_param_ids(missing_optional_params),
                 _format_param_ids(unsupported_params),
                 _format_param_ids(bulk_gap_params),
+                _format_param_ids(ignored_optional_params),
                 _format_param_ids(individual_retry_params),
                 _format_param_ids(no_response_params),
                 untracked_response_chunks,
-                "available" if complete and received_response else "unavailable",
+                "available" if available else "unavailable",
             )
-        return complete and received_response
+        return available
 
     def set_param(self, param, value):
         valpar = self.get_params_values(param, value)

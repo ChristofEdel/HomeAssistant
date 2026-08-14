@@ -33,16 +33,10 @@ DEVICE_PROFILES = {
         supports_direction=True,
         supports_oscillation=True,
         supports_preset_speed_settings=True,
-        poll_required_params=frozenset(
-            {
-                # Some Vento Expert units omit optional diagnostics from normal
-                # polls. Treat the core fan/control rows as the availability
-                # signal so missing sensors do not block setup.
-                0x0001,
-                0x0002,
-                0x0044,
-            }
-        ),
+        # Vento Expert firmware can omit any one of the state, speed, or
+        # manual-speed rows during a valid poll. Require a tracked response
+        # instead of choosing one row as universally stable.
+        poll_required_params=frozenset(),
     ),
     "extract_fan": DeviceProfile(
         key="extract_fan",
@@ -126,6 +120,16 @@ DEVICE_PROFILES = {
         ),
         speed_percent_scale="percent",
         supports_percentage_control=False,
+        poll_required_params=frozenset(
+            {
+                # VENTS Micra 100 WiFi units have been observed never
+                # answering alarm_list (0x007F), with occasional lossy drops
+                # of other rows. Keep only the rows that proved stable across
+                # the full and quick poll paths fatal for availability.
+                0x0002,
+                0x0006,
+            }
+        ),
     ),
     "arc": DeviceProfile(
         key="arc",
