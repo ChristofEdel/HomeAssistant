@@ -287,14 +287,14 @@ template:
           {{ result.isoformat() if result is not none else none }}
 
       - name: "Garden Sprinklers: Lawns Next Run"
-        unique_id: garden_sprinklers_dry_lawns_next_run
-        default_entity_id: sensor.garden_sprinklers_dry_lawns_next_run
+        unique_id: garden_sprinklers_lawns_next_run
+        default_entity_id: sensor.garden_sprinklers_lawns_next_run
         device_class: timestamp
         icon: mdi:calendar-clock
         state: >
           {% from 'opensprinkler-helpers.jinja' import next_program_run %}
           {% set get_next_run = next_program_run | as_function %}
-          {% set result = get_next_run('garden_sprinklers_dry_lawns') %}
+          {% set result = get_next_run('garden_sprinklers_lawns') %}
           {{ result.isoformat() if result is not none else none }}
 
   # Flag for each program if any of the stations for a programme were started by HASS,
