@@ -1,0 +1,173 @@
+input_number:
+  mhrv_auto_bypass_temperature_setpoint:
+    name: MHRV Auto Bypass Temperature Setpoint
+    min: 15
+    max: 25
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    initial: 20
+
+  mhrv_auto_bypass_temperature_hysteresis:
+    name: MHRV Auto Bypass Temperature Hysteresis
+    min: 0.1
+    max: 5
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    initial: 0.5
+
+input_select:
+  mhrv_auto_bypass_control:
+    name: MHRV Auto Bypass Control
+    options:
+      - "Off"
+      - "On"
+      - "Auto"
+    initial: "Auto"
+    icon: mdi:hvac
+
+template:
+  - sensor:
+      - name: MHRV Auto Bypass Current State
+        unique_id: mhrv_auto_bypass_current_state
+        state: >
+          {% if states('sensor.mhrv_bypass_position') | float(0) >= 50 %}
+            Open (on)
+          {% else %}
+            Closed (off)
+          {% endif %}
+        availability: >
+          {{ is_number(states('sensor.mhrv_bypass_position')) }}
+        icon: >
+          {% if states('sensor.mhrv_bypass_position') | float(0) >= 50 %}
+            mdi:shuffle-disabled
+          {% else %}
+            mdi:shuffle-variant
+          {% endif %}
+
+automation:
+  - id: mhrv_auto_bypass_control
+    alias: MHRV Auto Bypass Control
+    description: >
+      Opens the MHRV bypass when heat recovery is undesirable, for example,
+      on warm days when inside temperature is too low, or on cold days/nights
+      when the inside temperature is too high. 
+
+    mode: restart
+
+    trigger:
+      - platform: state
+        entity_id:
+          - sensor.mhrv_extract_temperature
+          - sensor.mhrv_intake_temperature
+          - input_number.mhrv_auto_bypass_temperature_setpoint
+          - input_number.mhrv_auto_bypass_temperature_hysteresis
+          - input_select.mhrv_auto_bypass_control
+
+    variables:
+      extract:    "{{ states('sensor.mhrv_extract_temperature') | float(0) }}"
+      intake:     "{{ states('sensor.mhrv_intake_temperature') | float(0) }}"
+      setpoint:   "{{ states('input_number.mhrv_auto_bypass_temperature_setpoint') | float(20) }}"
+      hysteresis: "{{ states('input_number.mhrv_auto_bypass_temperature_hysteresis') | float(0.5) }}"
+      control:    "{{ states('input_select.mhrv_auto_bypass_control') }}"
+      bypass:     "{{ states('select.mhrv_bypass_mode') }}"
+
+    action:
+      - choose:
+
+          # Manual OFF
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ control == 'Off' and bypass != 'Off' }}
+            sequence:
+              - service: select.select_option
+                target:
+                  entity_id: select.mhrv_bypass_mode
+                data:
+                  option: "Off"
+
+          # Manual ON
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ control == 'On' and bypass != 'On' }}
+            sequence:
+              - service: select.select_option
+                target:
+                  entity_id: select.mhrv_bypass_mode
+                data:
+                  option: "On"
+
+          # Auto: free cooling
+          # Turn bypass ON when intake is sufficiently cooler than extract.
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ control == 'Auto'
+                     and is_number(states('sensor.mhrv_extract_temperature'))
+                     and is_number(states('sensor.mhrv_intake_temperature'))
+                     and extract > setpoint
+                     and intake <= (extract - hysteresis)
+                     and bypass != 'On' }}
+            sequence:
+              - service: select.select_option
+                target:
+                  entity_id: select.mhrv_bypass_mode
+                data:
+                  option: "On"
+
+          # Auto: stop free cooling
+          # Turn bypass OFF when intake is no longer cooler than extract.
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ control == 'Auto'
+                     and is_number(states('sensor.mhrv_extract_temperature'))
+                     and is_number(states('sensor.mhrv_intake_temperature'))
+                     and extract > setpoint
+                     and intake >= (extract + hysteresis)
+                     and bypass != 'Off' }}
+            sequence:
+              - service: select.select_option
+                target:
+                  entity_id: select.mhrv_bypass_mode
+                data:
+                  option: "Off"
+
+          # Auto: free heating
+          # Turn bypass ON when intake is sufficiently warmer than extract.
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ control == 'Auto'
+                     and is_number(states('sensor.mhrv_extract_temperature'))
+                     and is_number(states('sensor.mhrv_intake_temperature'))
+                     and extract < setpoint
+                     and intake >= (extract + hysteresis)
+                     and bypass != 'On' }}
+            sequence:
+              - service: select.select_option
+                target:
+                  entity_id: select.mhrv_bypass_mode
+                data:
+                  option: "On"
+
+          # Auto: stop free heating
+          # Turn bypass OFF when intake is no longer warmer than extract.
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ control == 'Auto'
+                     and is_number(states('sensor.mhrv_extract_temperature'))
+                     and is_number(states('sensor.mhrv_intake_temperature'))
+                     and extract < setpoint
+                     and intake <= (extract - hysteresis)
+                     and bypass != 'Off' }}
+            sequence:
+              - service: select.select_option
+                target:
+                  entity_id: select.mhrv_bypass_mode
+                data:
+                  option: "Off"
