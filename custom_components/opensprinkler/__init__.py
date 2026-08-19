@@ -62,6 +62,7 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [
     "binary_sensor",
+    "calendar",
     "date",
     "number",
     "select",
@@ -548,6 +549,7 @@ class OpenSprinklerStationEntity:
             "index",
             "is_master",
             "running_program_id",
+            "group",
         ]:
             try:
                 attributes[attr] = getattr(self._station, attr)
