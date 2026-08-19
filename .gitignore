@@ -1,27 +1,34 @@
+# Files in the main folder that we should ignore
+/.ha_run.lock
+/.HA_VERSION
+/home-assistant_v2.db*
+/home-assistant.log*
+/secrets.yaml
+
+# Top-level folders se should ignore
 /.cache/
 /.cloud/
 /.venv/
-/.ha_run.lock
-/.HA_VERSION
 /.storage/
 /backups/
 /deps/
 /blueprints/
-/home-assistant_v2.db*
-/home-assistant.log*
-/secrets.yaml
-/custom_components/hacs
 /tts/
-__pycache__/
+
+# Files and folders to ignore everywhere
 Thumbs.db
-/custom_components/opensprinkler/
+__pycache__/
+
+# Downloaded components and custom controls
 /www/community/opensprinkler-card
-/custom_components/popup_card
 /www/community/lovelace-card-mod
 /www/community/apexcharts-card
 /www/community/energy-sankey
-/custom_components/octopus_energy/
 /www/community/lovelace-expander-card
 /www/community/decluttering-card
-/custom_components/mitsubishi
+/custom_components/hacs/
+/custom_components/popup_card/
+/custom_components/opensprinkler/
+/custom_components/octopus_energy/
+/custom_components/mitsubishi/
 /custom_components/uix/
