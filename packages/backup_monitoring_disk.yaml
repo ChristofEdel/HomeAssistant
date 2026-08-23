@@ -1,0 +1,129 @@
+#
+# backup_monitoring_disk.yaml
+#
+# Defines the following sensors monitoring the size of the backups on the local server disk in GB
+#
+#    - backup_size_psst_gb                /shared/Backup/PSST
+#    - backup_size_rainbow_one            /shared/Backup/PSST
+#    - backup_size_miniflash_gb           /shared/Backup/PSST
+#    - backup_size_home_assistant_gb      Homeassistant Docker: /config/Backup
+#
+# When the data is unavailable temporarily (e.g., after restart) these sensors retain their previous value
+#
+
+template:
+  - sensor:
+      - name: "Backup Size - PSST (GB)"
+        unique_id: backup_size_psst_gb
+        default_entity_id: sensor.backup_size_psst_gb
+        device_class: data_size
+        state_class: measurement
+        unit_of_measurement: "GiB"
+        state: >
+          {{ (states('sensor.backup_size_psst') | float / 1073741824) | round(2) }}
+
+    triggers:
+      - trigger: state
+        entity_id: sensor.backup_size_psst
+        not_to:
+          - unknown
+          - unavailable
+
+  - sensor:
+      - name: "Backup Size - Rainbow One (GB)"
+        unique_id: backup_size_rainbow_one_gb
+        default_entity_id: sensor.backup_size_rainbow_one_gb
+        device_class: data_size
+        state_class: measurement
+        unit_of_measurement: "GiB"
+        state: >
+          {{ (states('sensor.backup_size_rainbow_one') | float / 1073741824) | round(2) }}
+
+    triggers:
+      - trigger: state
+        entity_id: sensor.backup_size_rainbow_one
+        not_to:
+          - unknown
+          - unavailable
+
+  - sensor:
+      - name: "Backup Size - Miniflash (GB)"
+        unique_id: backup_size_miniflash_gb
+        default_entity_id: sensor.backup_size_miniflash_gb
+        device_class: data_size
+        state_class: measurement
+        unit_of_measurement: "GiB"
+        state: >
+          {{ (states('sensor.backup_size_miniflash') | float / 1073741824) | round(2) }}
+
+    triggers:
+      - trigger: state
+        entity_id: sensor.backup_size_miniflash
+        not_to:
+          - unknown
+          - unavailable
+
+  - sensor:
+      - name: "Backup Size - Home Assistant (GB)"
+        unique_id: backup_size_home_assistant_gb
+        default_entity_id: sensor.backup_size_home_assistant_gb
+        device_class: data_size
+        state_class: measurement
+        unit_of_measurement: "GiB"
+        state: >
+          {{ (states('sensor.backup_size_home_assistant') | float / 1073741824) | round(2) }}
+
+    triggers:
+      - trigger: state
+        entity_id: sensor.backup_size_home_assistant
+        not_to:
+          - unknown
+          - unavailable
+
+
+#
+# Four command line sensors to measure the size of backups on the disk
+#
+# After a restart, these sensors have NO VALUE so should not be used for displays in graphs ets
+# Use the GB sensors defined above instead
+#
+command_line:
+  - sensor:
+      name: "Backup Size - PSST"
+      unique_id: backup_size_psst
+      command: "du -sb '/media/nas_shared_folders/Backup/PSST' | cut -f1"
+      unit_of_measurement: "B"
+      device_class: data_size
+      state_class: measurement
+      scan_interval: 300
+      value_template: "{{ value | int }}"
+
+  - sensor:
+      name: "Backup Size - Rainbow One"
+      unique_id: backup_size_rainbow_one
+      command: "du -sb '/media/nas_shared_folders/Backup/Rainbow One' | cut -f1"
+      unit_of_measurement: "B"
+      device_class: data_size
+      state_class: measurement
+      scan_interval: 300
+      value_template: "{{ value | int }}"
+
+  - sensor:
+      name: "Backup Size - Miniflash"
+      unique_id: backup_size_miniflash
+      command: "du -sb '/media/nas_shared_folders/Backup/Miniflash' | cut -f1"
+      unit_of_measurement: "B"
+      device_class: data_size
+      state_class: measurement
+      scan_interval: 300
+      value_template: "{{ value | int }}"
+
+  - sensor:
+      name: "Backup Size - Home Assistant"
+      unique_id: backup_size_home_assistant
+      command: "du -sb '/config/backups' | cut -f1"
+      unit_of_measurement: "B"
+      device_class: data_size
+      state_class: measurement
+      scan_interval: 300
+      value_template: "{{ value | int }}"

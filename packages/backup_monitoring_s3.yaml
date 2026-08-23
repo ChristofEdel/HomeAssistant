@@ -1,0 +1,214 @@
+#
+# backup_monitoring_s3.yaml
+#
+# Defines the following sensors monitoring the size of the backup "Buckets" on Amazon S3
+#  - backup_size_s3_psst[_gb]
+#  - backup_size_s3_rainbow_one[_gb]
+#  - backup_size_s3_miniflash[_gb]
+#  - backup_size_s3_home_assistant[_gb]
+#
+# As well as the split of the storage space by "storage class"
+#  - backup_size_s3_storage_class_deep_archive[_gb]
+#  - backup_size_s3_storage_class_other[_gb]
+#
+shell_command:
+  s3_bucket_sizes: >-
+    output="$(python3 /config/scripts/s3-bucket-sizes.py eu-west-2)";
+    rc=$?;
+    if [ $rc -eq 0 ]; then
+      mkdir -p /config/s3-bucket-sizes-debug;
+      printf '%s\n' "$output" > "/config/s3-bucket-sizes-debug/$(date +%Y%m%d-%H%M%S).json";
+    fi;
+    printf '%s\n' "$output";
+    exit $rc
+
+template:
+# Sensor to query all bucket sizes from S3 region eu-west-2 using CloudWatch
+  - sensor:
+      - name: "S3 Bucket Sizes- CloudWatch"
+        unique_id: s3_bucket_sizes_cloudwatch
+        default_entity_id: sensor.s3_bucket_sizes_cloudwatch
+
+        state: >
+          {% if s3_result.returncode == 0 %}
+            {{ (s3_result.stdout | from_json) | count }}
+          {% else %}
+            {{ this.state }}
+          {% endif %}
+
+        attributes:
+          buckets: >
+            {% if s3_result.returncode == 0 %}
+              {{ s3_result.stdout | from_json }}
+            {% else %}
+              {{ this.attributes.buckets | default([]) }}
+            {% endif %}
+
+    triggers:
+      - trigger: time_pattern
+        minutes: "0"
+
+      - trigger: event
+        event_type: s3_bucket_sizes_refresh
+
+    actions:
+      - action: shell_command.s3_bucket_sizes
+        response_variable: s3_result
+
+# Sensors extracting the data from the above
+  - sensor:
+      - name: "Backup Size S3 - PSST"
+        unique_id: backup_size_s3_psst
+        default_entity_id: sensor.backup_size_s3_psst
+        device_class: data_size
+        state_class: measurement
+        unit_of_measurement: "B"
+        availability: >
+          {% set buckets = state_attr('sensor.s3_bucket_sizes_cloudwatch', 'buckets') or [] %}
+          {{ buckets
+             | selectattr('name', 'eq', 'kopia-backup-psst-569074395249-eu-west-2-an')
+             | list | count > 0 }}
+        state: >
+          {% set buckets = state_attr('sensor.s3_bucket_sizes_cloudwatch', 'buckets') or [] %}
+          {% set matches = buckets
+             | selectattr('name', 'eq', 'kopia-backup-psst-569074395249-eu-west-2-an')
+             | list %}
+          {{ matches[0].total_bytes | int if matches else 0 }}
+
+      - name: "Backup Size S3 - Rainbow One"
+        unique_id: backup_size_s3_rainbow_one
+        default_entity_id: sensor.backup_size_s3_rainbow_one
+        device_class: data_size
+        state_class: measurement
+        unit_of_measurement: "B"
+        availability: >
+          {% set buckets = state_attr('sensor.s3_bucket_sizes_cloudwatch', 'buckets') or [] %}
+          {{ buckets
+             | selectattr('name', 'eq', 'kopia-backup-rainbow-one-569074395249-eu-west-2-an')
+             | list | count > 0 }}
+        state: >
+          {% set buckets = state_attr('sensor.s3_bucket_sizes_cloudwatch', 'buckets') or [] %}
+          {% set matches = buckets
+             | selectattr('name', 'eq', 'kopia-backup-rainbow-one-569074395249-eu-west-2-an')
+             | list %}
+          {{ matches[0].total_bytes | int if matches else 0 }}
+
+      - name: "Backup Size S3 - Miniflash"
+        unique_id: backup_size_s3_miniflash
+        default_entity_id: sensor.backup_size_s3_miniflash
+        device_class: data_size
+        state_class: measurement
+        unit_of_measurement: "B"
+        availability: >
+          {% set buckets = state_attr('sensor.s3_bucket_sizes_cloudwatch', 'buckets') or [] %}
+          {{ buckets
+             | selectattr('name', 'eq', 'kopia-backup-miniflash-569074395249-eu-west-2-an')
+             | list | count > 0 }}
+        state: >
+          {% set buckets = state_attr('sensor.s3_bucket_sizes_cloudwatch', 'buckets') or [] %}
+          {% set matches = buckets
+             | selectattr('name', 'eq', 'kopia-backup-miniflash-569074395249-eu-west-2-an')
+             | list %}
+          {{ matches[0].total_bytes | int if matches else 0 }}
+
+      - name: "Backup Size S3 - Home Assistant"
+        unique_id: backup_size_s3_home_assistant
+        default_entity_id: sensor.backup_size_s3_home_assistant
+        device_class: data_size
+        state_class: measurement
+        unit_of_measurement: "B"
+        availability: >
+          {% set buckets = state_attr('sensor.s3_bucket_sizes_cloudwatch', 'buckets') or [] %}
+          {{ buckets
+             | selectattr('name', 'eq', 'homeassistant-backups-569074395249-eu-west-2-an')
+             | list | count > 0 }}
+        state: >
+          {% set buckets = state_attr('sensor.s3_bucket_sizes_cloudwatch', 'buckets') or [] %}
+          {% set matches = buckets
+             | selectattr('name', 'eq', 'homeassistant-backups-569074395249-eu-west-2-an')
+             | list %}
+          {{ matches[0].total_bytes | int if matches else 0 }}
+
+      - name: "Backup Size S3 - Storage Class Deep Archive"
+        unique_id: backup_size_s3_storage_class_deep_archive
+        default_entity_id: sensor.backup_size_s3_storage_class_deep_archive
+        device_class: data_size
+        state_class: measurement
+        unit_of_measurement: "B"
+        availability: >
+          {{ (state_attr('sensor.s3_bucket_sizes_cloudwatch', 'buckets') or []) | count > 0 }}
+        state: >
+          {% set buckets = state_attr('sensor.s3_bucket_sizes_cloudwatch', 'buckets') or [] %}
+          {{ buckets | sum(attribute='deep_archive_bytes') | int }}
+
+      - name: "Backup Size S3 - Other Storage Classes"
+        unique_id: backup_size_s3_storage_class_other
+        default_entity_id: sensor.backup_size_s3_storage_class_other
+        device_class: data_size
+        state_class: measurement
+        unit_of_measurement: "B"
+        availability: >
+          {{ (state_attr('sensor.s3_bucket_sizes_cloudwatch', 'buckets') or []) | count > 0 }}
+        state: >
+          {% set buckets = state_attr('sensor.s3_bucket_sizes_cloudwatch', 'buckets') or [] %}
+          {{ buckets | sum(attribute='other_bytes') | int }}
+
+      - name: "Backup Size S3 - PSST (GB)"
+        unique_id: backup_size_s3_psst_gb
+        default_entity_id: sensor.backup_size_s3_psst_gb
+        device_class: data_size
+        state_class: measurement
+        unit_of_measurement: "GiB"
+        availability: "{{ is_number(states('sensor.backup_size_s3_psst')) }}"
+        state: >
+          {{ (states('sensor.backup_size_s3_psst') | float(0) / 1073741824) | round(2) }}
+
+      - name: "Backup Size S3 - Rainbow One (GB)"
+        unique_id: backup_size_s3_rainbow_one_gb
+        default_entity_id: sensor.backup_size_s3_rainbow_one_gb
+        device_class: data_size
+        state_class: measurement
+        unit_of_measurement: "GiB"
+        availability: "{{ is_number(states('sensor.backup_size_s3_rainbow_one')) }}"
+        state: >
+          {{ (states('sensor.backup_size_s3_rainbow_one') | float(0) / 1073741824) | round(2) }}
+
+      - name: "Backup Size S3 - Miniflash (GB)"
+        unique_id: backup_size_s3_miniflash_gb
+        default_entity_id: sensor.backup_size_s3_miniflash_gb
+        device_class: data_size
+        state_class: measurement
+        unit_of_measurement: "GiB"
+        availability: "{{ is_number(states('sensor.backup_size_s3_miniflash')) }}"
+        state: >
+          {{ (states('sensor.backup_size_s3_miniflash') | float(0) / 1073741824) | round(2) }}
+
+      - name: "Backup Size S3 - Home Assistant (GB)"
+        unique_id: backup_size_s3_home_assistant_gb
+        default_entity_id: sensor.backup_size_s3_home_assistant_gb
+        device_class: data_size
+        state_class: measurement
+        unit_of_measurement: "GiB"
+        availability: "{{ is_number(states('sensor.backup_size_s3_home_assistant')) }}"
+        state: >
+          {{ (states('sensor.backup_size_s3_home_assistant') | float(0) / 1073741824) | round(2) }}
+
+      - name: "Backup Size S3 - Storage Class Deep Archive (GB)"
+        unique_id: backup_size_s3_storage_class_deep_archive_gb
+        default_entity_id: sensor.backup_size_s3_storage_class_deep_archive_gb
+        device_class: data_size
+        state_class: measurement
+        unit_of_measurement: "GiB"
+        availability: "{{ is_number(states('sensor.backup_size_s3_storage_class_deep_archive')) }}"
+        state: >
+          {{ (states('sensor.backup_size_s3_storage_class_deep_archive') | float(0) / 1073741824) | round(2) }}
+
+      - name: "Backup Size S3 - Other Storage Classes (GB)"
+        unique_id: backup_size_s3_storage_class_other_gb
+        default_entity_id: sensor.backup_size_s3_storage_class_other_gb
+        device_class: data_size
+        state_class: measurement
+        unit_of_measurement: "GiB"
+        availability: "{{ is_number(states('sensor.backup_size_s3_storage_class_other')) }}"
+        state: >
+          {{ (states('sensor.backup_size_s3_storage_class_other') | float(0) / 1073741824) | round(2) }}
