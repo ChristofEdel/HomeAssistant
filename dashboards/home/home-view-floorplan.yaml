@@ -1,0 +1,184 @@
+type: sections
+title: All
+icon: mdi:lightbulb
+path: floor-plan
+
+max_columns: 2
+dense_section_placement: true
+theme: floorplan_view
+
+badges:
+  - type: entity
+    entity: sensor.lights_on
+    tap_action:
+      action: perform-action
+      perform_action: script.turn_off_active_lights
+      target:
+        entity_id: light.all_lights
+
+sections:
+  - type: grid
+    cards:
+      - type: custom:floorplan-card
+        path: ground-floor
+        image: /local/ground_floor.svg
+        grid_options:
+          columns: full
+        show_grid: false
+        max_width: 700px
+        icon_size: max(24px, 5%)
+        elements:
+          - type: state-icon
+            entity: light.living_room_front
+            top: 18%
+            left: 44%
+          - type: state-icon
+            entity: light.living_room_back
+            top: 18%
+            left: 18%
+          - type: state-icon
+            entity: light.living_room_left
+            top: 29%
+            left: 10%
+          - type: state-icon
+            entity: light.living_room_left
+            top: 29%
+            left: 51%
+          - type: state-icon
+            entity: light.living_room_right
+            top: 9%
+            left: 10%
+          - type: state-icon
+            entity: light.living_room_right
+            top: 9%
+            left: 51%
+          - type: state-icon
+            entity: light.ground_floor_hallway
+            top: 30%
+            left: 66%
+          - type: state-icon
+            entity: light.ground_floor_sewing_room
+            top: 13%
+            left: 85%
+          - type: state-icon
+            entity: light.ground_floor_staircase
+            top: 36%
+            left: 51%
+          - type: state-icon
+            entity: light.ground_floor_guest_bedroom
+            top: 43%
+            left: 85%
+          - type: state-icon
+            entity: light.extension_library
+            top: 65%
+            left: 80%
+          - type: state-icon
+            entity: light.kitchen_e
+            top: 40%
+            left: 10%
+          - type: state-icon
+            entity: light.kitchen_d
+            top: 46.5%
+            left: 10%
+          - type: state-icon
+            entity: light.kitchen_c
+            top: 53%
+            left: 10%
+          - type: state-icon
+            entity: light.kitchen_b
+            top: 59.5%
+            left: 10%
+          - type: state-icon
+            entity: light.kitchen_a
+            top: 66%
+            left: 10%
+          - type: state-icon
+            entity: light.kitchen_table
+            top: 66%
+            left: 30%
+          - type: state-icon
+            entity: light.basement
+            top: 87%
+            left: 30%
+          - type: state-icon
+            entity: light.extension_1
+            top: 80%
+            left: 66%
+          - type: state-icon
+            entity: light.extension_2
+            top: 87%
+            left: 66%
+          - type: state-icon
+            entity: light.extension_table
+            top: 87%
+            left: 80%
+          - type: state-icon
+            entity: light.external_door
+            top: 3%
+            left: 66%
+  - type: grid
+    cards:
+      - type: custom:floorplan-card
+        image: /local/first_floor.svg
+        grid_options:
+          columns: full
+        show_grid: false
+        max_width: 700px
+        icon_size: max(24px, 5%)
+        elements:
+          - type: state-icon
+            entity: switch.1st_floor_3d_printer
+            top: 8%
+            left: 66%
+          - type: state-icon
+            entity: light.mezzanine_a
+            top: 80%
+            left: 40%
+          - type: state-icon
+            entity: light.mezzanine_b
+            left: 15%
+            top: 80%
+          - type: state-icon
+            entity: light.mezzanine_c
+            left: 15%
+            top: 60%
+          - type: state-icon
+            entity: light.mezzanine_d
+            left: 40%
+            top: 60%
+          - type: state-icon
+            entity: light.ground_floor_staircase
+            left: 55.5%
+            top: 57%
+          - type: state-icon
+            entity: light.1st_floor_landing
+            left: 46%
+            top: 43%
+          - type: state-icon
+            entity: light.1st_floor_landing
+            left: 66%
+            top: 43%
+          - type: state-icon
+            entity: light.1st_floor_cinema
+            left: 80%
+            top: 16%
+          - type: state-icon
+            entity: light.1st_floor_hallway_2
+            left: 66%
+            top: 60%
+          - type: state-icon
+            entity: light.1st_floor_dressing
+            left: 85%
+            top: 39%
+          - type: state-icon
+            entity: light.1st_floor_bathroom
+            left: 80%
+            top: 58%
+          - type: state-icon
+            entity: switch.1st_floor_bathroom_fan
+            left: 90%
+            top: 58%
+          - type: state-icon
+            entity: light.1st_floor_bedroom
+            left: 80%
+            top: 82%

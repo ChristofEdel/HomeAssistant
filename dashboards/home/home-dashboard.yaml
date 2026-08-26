@@ -1,0 +1,11 @@
+# dashboard/energy-dashboard.yaml
+apexcharts_card_templates: !include ../apexcharts-card-templates.yaml
+
+decluttering_templates:
+  !include ../components/opensprinkler-program.yaml
+
+views:
+  - !include home-view-floorplan.yaml
+  - !include home-view-hatches.yaml
+  - !include home-view-mhrv.yaml
+  - !include home-view-irrigation.yaml

@@ -26,6 +26,12 @@ lovelace:
       title: Energy
       icon: mdi:lightning-bolt-outline
       show_in_sidebar: true
+    home-dashboard:
+      mode: yaml
+      filename: dashboards/home/home-dashboard.yaml
+      title: Home
+      icon: mdi:home
+      show_in_sidebar: true
 
 # load automations, scripts and scenes from separate files
 # I don't use this, all my automations, scripts and scenes are in packages.

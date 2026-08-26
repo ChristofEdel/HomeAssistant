@@ -1,0 +1,45 @@
+type: sections
+title: Hatches
+icon: mdi:door
+path: hatches
+
+max_columns: 4
+theme: standard-dashboard
+
+sections:
+  - type: grid
+    cards:
+      - type: tile
+        entity: cover.1st_floor_roof_hatch_246
+        features:
+          - type: cover-position
+      - type: tile
+        entity: cover.kitchen_hatch
+        vertical: false
+        features:
+          - type: cover-position
+        features_position: bottom
+      - type: tile
+        entity: cover.extension_lantern_hatch
+        vertical: false
+        features:
+          - type: cover-position
+        features_position: bottom
+    column_span: 4
+  - type: grid
+    cards:
+      - type: heading
+        heading: New section
+      - type: tile
+        entity: climate.ac_bedroom
+        tap_action:
+          action: fire-dom-event
+          popup_card:
+            title: Bedroom A/C
+            content:
+              type: vertical-stack
+              cards:
+                - type: thermostat
+                  entity: climate.ac_bedroom
+      - type: tile
+        entity: climate.ac_cinema_a_c_cinema

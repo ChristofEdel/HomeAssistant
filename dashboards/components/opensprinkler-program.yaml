@@ -1,0 +1,156 @@
+#
+# Decluttering template "opensprinkler_program"
+#
+# Usage:
+#
+#  - type: custom:decluttering-card
+#    template: opensprinkler_program
+#    grid_options:
+#      columns: full
+#      rows: 1
+#    variables:
+#      - program: lawns
+#      - stations:
+#          - front_lawn
+#          - lawn_left_1
+#          - lawn_left_2
+#          - lawn_mid
+#          - lawn_right
+#      - name: Irrigation Program
+#      - stop_action:
+#          action: perform-action
+#          perform_action: opensprinkler.stop
+#          target:
+#            entity_id:
+#              - switch.garden_sprinklers_front_lawn_station_enabled
+#              - switch.garden_sprinklers_lawn_left_1_station_enabled
+#              - switch.garden_sprinklers_lawn_left_2_station_enabled
+#              - switch.garden_sprinklers_lawn_mid_station_enabled
+#              - switch.garden_sprinklers_lawn_right_station_enabled
+#
+opensprinkler_program:
+  default:
+    - icon: null
+  card:
+    type: custom:mod-card
+    card:
+      type: horizontal-stack
+      cards:
+        - type: tile
+          entity: binary_sensor.garden_sprinklers_[[program]]_program_status
+          name: '[[name]]'
+          icon: '[[icon]]'
+          state_content:
+            - running_text
+            - next_run
+          vertical: false
+          features_position: bottom
+          tap_action:
+            action: none
+          icon_tap_action:
+            action: none
+        - type: button
+          icon: mdi:play
+          show_name: false
+          show_state: false
+          visibility:
+            - condition: state
+              entity: binary_sensor.garden_sprinklers_[[program]]_program_status
+              state: 'off'
+            - condition: state
+              entity: binary_sensor.garden_sprinklers_[[program]]_program_pending
+              state: 'off'
+          tap_action:
+            action: fire-dom-event
+            popup_card:
+              title: '[[name]]'
+              content:
+                type: custom:opensprinkler-start-card
+                program_prefix: garden_sprinklers_[[program]]
+                stations: '[[stations]]'
+              background: var(--primary-background-color, white)
+        - type: button
+          icon: mdi:stop
+          show_name: false
+          show_state: false
+          visibility:
+            - condition: or
+              conditions:
+                - condition: state
+                  entity: binary_sensor.garden_sprinklers_[[program]]_program_status
+                  state: 'on'
+                - condition: state
+                  entity: >-
+                    binary_sensor.garden_sprinklers_[[program]]_program_pending
+                  state: 'on'
+          tap_action: '[[stop_action]]'
+        - type: button
+          icon: mdi:dots-vertical
+          show_name: false
+          show_state: false
+          tap_action:
+            action: fire-dom-event
+            popup_card:
+              title: '[[name]]'
+              content:
+                type: custom:opensprinkler-program-card
+                program_prefix: garden_sprinklers_[[program]]
+                stations: '[[stations]]'
+              background: var(--primary-background-color, white)
+    card_mod:
+      style:
+        hui-horizontal-stack-card $:
+          .: |
+            #root {
+              gap: 4px !important;
+              align-items: center !important;
+            }
+
+            #root > hui-card > hui-tile-card {
+              flex: 1 1 auto !important;
+              width: auto !important;
+              min-width: 0 !important;
+            }
+
+            #root > hui-card > hui-button-card {
+              flex: 0 0 36px !important;
+              width: 36px !important;
+              min-width: 36px !important;
+              max-width: 36px !important;
+              height: 36px !important;
+              align-self: center !important;
+            }
+          hui-tile-card $: |
+            ha-card {
+              background: transparent !important;
+              border: none !important;
+              box-shadow: none !important;
+              border-radius: 0 !important;
+            }
+          hui-button-card $: |
+            ha-card {
+              width: 36px !important;
+              height: 36px !important;
+              min-height: 36px !important;
+              padding: 0 !important;
+
+              background: transparent !important;
+              border: none !important;
+              box-shadow: none !important;
+              border-radius: 50% !important;
+            }
+
+            ha-state-icon {
+              width: 20px !important;
+              height: 20px !important;
+              max-height: none !important;
+              --mdc-icon-size: 20px;
+            }
+        .: |
+          ha-card {
+            background: var(--ha-card-background, var(--card-background-color)) !important;
+            border: var(--ha-card-border-width, 1px) solid var(--ha-card-border-color, var(--divider-color)) !important;
+            border-radius: var(--ha-card-border-radius, 12px) !important;
+            box-shadow: var(--ha-card-box-shadow, none) !important;
+            overflow: hidden;
+          }

@@ -1,0 +1,440 @@
+type: sections
+title: Irrigation
+icon: mdi:tree-outline
+path: irrigation
+
+max_columns: 4
+theme: standard-dashboard
+
+sections:
+  - type: grid
+    row_span: 2
+    cards:
+      - type: custom:expander-card
+        expander-card-id: trees
+        expanded: false
+        clear: true
+        title-card-clickable: false
+        title-card-button-overlay: true
+        padding: 0
+        style: |
+          .header.header-overlay {
+            padding: 0.3em !important;
+          }
+        child-margin-top: var(--grid-card-gap, 8px)
+        title-card:
+          type: grid
+          columns: 2
+          square: false
+          card_mod:
+            style: |
+              #root > *:first-child {
+                grid-column: 1 / -1;
+              }
+          cards:
+            - type: heading
+              heading: Trees
+              heading_style: title
+              icon: mdi:tree-outline
+              tap_action:
+                action: fire-dom-event
+                expander-card:
+                  data:
+                    expander-card-id: trees
+                    action: toggle
+              card_mod:
+                style: |
+                  ha-icon-next {
+                    display: none !important;
+                  }
+
+                  .container .content {
+                    flex: 1 1 auto !important;
+                    max-width: none !important;
+                    width: 100%;
+                  }
+            - type: statistics-graph
+              entities:
+                - entity: sensor.soil_station_soil_moisture_1
+                  name: Surface
+                - entity: sensor.soil_station_soil_moisture_2
+                  name: Roots
+              title: Dogwood
+              period: 5minute
+              chart_type: line
+              stat_types:
+                - mean
+              min_y_axis: 200
+              max_y_axis: 0
+              fit_y_data: false
+            - type: statistics-graph
+              entities:
+                - entity: sensor.soil_station_soil_moisture_3
+                  name: Surface
+                - entity: sensor.soil_station_soil_moisture_4
+                  name: Roots
+              title: Hornbeam
+              period: 5minute
+              chart_type: line
+              stat_types:
+                - mean
+              min_y_axis: 200
+              max_y_axis: 0
+              fit_y_data: false
+        cards:
+          - square: false
+            type: grid
+            columns: 2
+            cards:
+              - type: statistics-graph
+                entities:
+                  - entity: sensor.soil_station_soil_temperature_1
+                    name: Surface
+                  - entity: sensor.soil_station_soil_temperature_2
+                    name: Roots
+                title: Dogwood
+                period: 5minute
+                chart_type: line
+                stat_types:
+                  - mean
+                min_y_axis: 0
+                max_y_axis: 30
+                fit_y_data: true
+              - type: statistics-graph
+                entities:
+                  - entity: sensor.soil_station_soil_temperature_3
+                    name: Surface
+                  - entity: sensor.soil_station_soil_temperature_4
+                    name: Roots
+                title: Hornbeam
+                period: 5minute
+                chart_type: line
+                stat_types:
+                  - mean
+                min_y_axis: 0
+                max_y_axis: 30
+                fit_y_data: true
+        grid_options:
+          columns: full
+      - type: custom:decluttering-card
+        template: opensprinkler_program
+        grid_options:
+          columns: full
+          rows: 1
+        variables:
+          - program: trees
+          - icon: mdi:water
+          - stations:
+              - trees
+          - name: Irrigation Program
+          - stop_action:
+              action: perform-action
+              perform_action: opensprinkler.stop
+              target:
+                entity_id: switch.garden_sprinklers_trees_station_enabled
+      - type: custom:apexcharts-card
+        graph_span: 24h
+        cache: false
+        header:
+          show: true
+          title: Average Flow Rate (5 min, l/min)
+        series:
+          - entity: sensor.garden_sprinklers_trees_station_flow_rate
+            name: 5-Minute Average Flow Rate
+            type: line
+            stroke_width: 2
+            color: var(--color-1)
+            group_by:
+              duration: 5min
+              func: avg
+        apex_config:
+          legend:
+            show: false
+        config_templates:
+          - standard_chart
+        section_mode: true
+        grid_options:
+          rows: 3
+          columns: 12
+      - type: custom:apexcharts-card
+        graph_span: 7d
+        span:
+          start: day
+          offset: -6d
+        header:
+          show: true
+          title: Daily Water Usage (l)
+        series:
+          - entity: sensor.garden_sprinklers_trees_station_water_daily
+            name: Daily Water Use
+            type: column
+            color: var(--color-1)
+            group_by:
+              duration: 1d
+              func: max
+              fill: 'null'
+        apex_config:
+          xaxis:
+            labels:
+              hideOverlappingLabels: false
+              showDuplicates: true
+              datetimeFormatter:
+                day: ddd
+        config_templates:
+          - standard_chart
+        section_mode: true
+        grid_options:
+          rows: 3
+          columns: 12
+    column_span: 2
+  - type: grid
+    cards:
+      - type: heading
+        icon: mdi:grass
+        heading: Lawns
+        heading_style: title
+      - type: custom:decluttering-card
+        template: opensprinkler_program
+        grid_options:
+          columns: full
+          rows: 1
+        variables:
+          - program: lawns
+          - stations:
+              - front_lawn
+              - lawn_left_1
+              - lawn_left_2
+              - lawn_mid
+              - lawn_right
+          - name: Irrigation Program
+          - stop_action:
+              action: perform-action
+              perform_action: opensprinkler.stop
+              target:
+                entity_id:
+                  - switch.garden_sprinklers_front_lawn_station_enabled
+                  - switch.garden_sprinklers_lawn_left_1_station_enabled
+                  - switch.garden_sprinklers_lawn_left_2_station_enabled
+                  - switch.garden_sprinklers_lawn_mid_station_enabled
+                  - switch.garden_sprinklers_lawn_right_station_enabled
+      - type: custom:apexcharts-card
+        graph_span: 24h
+        header:
+          show: true
+          title: Combined Average Flow Rate (5 min, L/min)
+        stacked: true
+        apex_config:
+          legend:
+            show: false
+        config_templates:
+          - standard_chart
+        cache: false
+        series:
+          - entity: sensor.garden_sprinklers_front_lawn_station_flow_rate
+            name: Front Lawn
+            type: area
+            stroke_width: 0
+            opacity: 1
+            color: var(--color-1)
+            group_by:
+              duration: 5min
+              func: avg
+          - entity: sensor.garden_sprinklers_lawn_left_1_station_flow_rate
+            name: Lawn Left 1
+            type: area
+            stroke_width: 0
+            opacity: 0.8
+            color: var(--color-1)
+            group_by:
+              duration: 5min
+              func: avg
+          - entity: sensor.garden_sprinklers_lawn_left_2_station_flow_rate
+            name: Lawn Left 2
+            type: area
+            stroke_width: 0
+            opacity: 0.6
+            color: var(--color-1)
+            group_by:
+              duration: 5min
+              func: avg
+          - entity: sensor.garden_sprinklers_lawn_mid_station_flow_rate
+            name: Lawn Mid
+            type: area
+            stroke_width: 0
+            opacity: 0.6
+            color: var(--color-1)
+            group_by:
+              duration: 5min
+              func: avg
+          - entity: sensor.garden_sprinklers_lawn_right_station_flow_rate
+            name: Lawn Right
+            type: area
+            stroke_width: 0
+            opacity: 0.6
+            color: var(--color-1)
+            group_by:
+              duration: 5min
+              func: avg
+        section_mode: true
+        grid_options:
+          rows: 3
+          columns: 12
+      - type: custom:apexcharts-card
+        graph_span: 7d
+        span:
+          start: day
+          offset: -6d
+        header:
+          show: true
+          title: Combined Daily Water Usage (L)
+        apex_config:
+          chart:
+            stacked: true
+          legend:
+            show: false
+          xaxis:
+            labels:
+              hideOverlappingLabels: false
+              showDuplicates: true
+              datetimeFormatter:
+                day: ddd
+        config_templates:
+          - standard_chart
+        series:
+          - entity: sensor.garden_sprinklers_front_lawn_station_water_daily
+            name: Front Lawn
+            type: column
+            color: var(--color-1)
+            opacity: 1
+            group_by:
+              duration: 1d
+              func: max
+              fill: 'null'
+          - entity: sensor.garden_sprinklers_lawn_left_1_station_water_daily
+            name: Lawn Left 1
+            type: column
+            color: var(--color-1)
+            opacity: 0.9
+            group_by:
+              duration: 1d
+              func: max
+              fill: 'null'
+          - entity: sensor.garden_sprinklers_lawn_left_2_station_water_daily
+            name: Lawn Left 2
+            type: column
+            color: var(--color-1)
+            opacity: 0.7
+            group_by:
+              duration: 1d
+              func: max
+              fill: 'null'
+          - entity: sensor.garden_sprinklers_lawn_mid_station_water_daily
+            name: Lawn Mid
+            type: column
+            color: var(--color-1)
+            opacity: 0.6
+            group_by:
+              duration: 1d
+              func: max
+              fill: 'null'
+          - entity: sensor.garden_sprinklers_lawn_right_station_water_daily
+            name: Lawn Right
+            type: column
+            color: var(--color-1)
+            opacity: 0.5
+            group_by:
+              duration: 1d
+              func: max
+              fill: 'null'
+        section_mode: true
+        grid_options:
+          rows: 3
+          columns: 12
+    column_span: 2
+  - type: grid
+    cards:
+      - type: heading
+        icon: mdi:sprout-outline
+        heading: Vegetable Garden
+        heading_style: title
+      - type: custom:decluttering-card
+        template: opensprinkler_program
+        grid_options:
+          columns: full
+          rows: 1
+        variables:
+          - program: veggies
+          - stations:
+              - veggies
+          - name: Irrigation Program
+          - icon: mdi:water
+          - stop_action:
+              action: perform-action
+              perform_action: opensprinkler.stop
+              target:
+                entity_id:
+                  - switch.garden_sprinklers_veggies_station_enabled
+      - type: custom:apexcharts-card
+        graph_span: 24h
+        cache: false
+        header:
+          show: true
+          title: Average Flow Rate (5 min, l/h)
+        series:
+          - entity: sensor.garden_sprinklers_veggies_station_flow_rate
+            name: 5-Minute Average Flow Rate
+            type: line
+            stroke_width: 2
+            color: var(--color-1)
+            group_by:
+              duration: 5min
+              func: avg
+        apex_config:
+          legend:
+            show: false
+        config_templates:
+          - standard_chart
+        section_mode: true
+        grid_options:
+          rows: 3
+          columns: 12
+      - type: custom:apexcharts-card
+        graph_span: 7d
+        span:
+          start: day
+          offset: -6d
+        header:
+          show: true
+          title: Daily Water Usage (l)
+        series:
+          - entity: sensor.garden_sprinklers_veggies_station_water_daily
+            name: Daily Water Use
+            type: column
+            color: var(--color-1)
+            group_by:
+              duration: 1d
+              func: max
+              fill: 'null'
+        apex_config:
+          xaxis:
+            labels:
+              hideOverlappingLabels: false
+              showDuplicates: true
+              datetimeFormatter:
+                day: ddd
+        config_templates:
+          - standard_chart
+        section_mode: true
+        grid_options:
+          rows: 3
+          columns: 12
+          type: grid
+    column_span: 2
+  - type: grid
+    cards:
+      - type: custom:opensprinkler-card
+        device: 900b4675bae7a67a3919e4540a7cab4a
+        grid_options:
+          columns: full
+        name: Sprinkler Activity
+    column_span: 4
