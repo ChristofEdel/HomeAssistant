@@ -95,7 +95,7 @@ command_line:
       unit_of_measurement: "B"
       device_class: data_size
       state_class: measurement
-      scan_interval: 300
+      scan_interval: 60
       value_template: "{{ value | int }}"
 
   - sensor:
@@ -105,7 +105,7 @@ command_line:
       unit_of_measurement: "B"
       device_class: data_size
       state_class: measurement
-      scan_interval: 300
+      scan_interval: 60
       value_template: "{{ value | int }}"
 
   - sensor:
@@ -115,7 +115,7 @@ command_line:
       unit_of_measurement: "B"
       device_class: data_size
       state_class: measurement
-      scan_interval: 300
+      scan_interval: 60
       value_template: "{{ value | int }}"
 
   - sensor:
@@ -125,5 +125,45 @@ command_line:
       unit_of_measurement: "B"
       device_class: data_size
       state_class: measurement
-      scan_interval: 300
+      scan_interval: 60
       value_template: "{{ value | int }}"
+
+  - sensor:
+      name: last_backup_psst
+      unique_id: last_backup_psst
+      device_class: timestamp
+      scan_interval: 60
+      command: >-
+        find "/media/nas_shared_folders/Backup/PSST" -type d -name 'q*'
+        -exec stat -c '%Y' {} \; | sort -nr | head -1 |
+        xargs -I{} date -u -d '@{}' '+%Y-%m-%dT%H:%M:%SZ'
+
+  - sensor:
+      name: last_backup_rainbow_one
+      unique_id: last_backup_rainbow_one
+      device_class: timestamp
+      scan_interval: 60
+      command: >-
+        find "/media/nas_shared_folders/Backup/Rainbow One" -type d -name 'q*'
+        -exec stat -c '%Y' {} \; | sort -nr | head -1 |
+        xargs -I{} date -u -d '@{}' '+%Y-%m-%dT%H:%M:%SZ'
+
+  - sensor:
+      name: last_backup_miniflash
+      unique_id: last_backup_miniflash
+      device_class: timestamp
+      scan_interval: 60
+      command: >-
+        find "/media/nas_shared_folders/Backup/Miniflash" -type d -name 'q*'
+        -exec stat -c '%Y' {} \; | sort -nr | head -1 |
+        xargs -I{} date -u -d '@{}' '+%Y-%m-%dT%H:%M:%SZ'
+      
+  - sensor:
+      name: last_backup_home_assistant
+      unique_id: last_backup_home_assistant
+      device_class: timestamp
+      scan_interval: 60
+      command: >-
+        find "/config/backups" -type f
+        -exec stat -c '%Y' {} \; | sort -nr | head -1 |
+        xargs -I{} date -u -d '@{}' '+%Y-%m-%dT%H:%M:%SZ'

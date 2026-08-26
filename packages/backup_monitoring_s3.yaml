@@ -21,6 +21,7 @@ shell_command:
     fi;
     printf '%s\n' "$output";
     exit $rc
+  last_backup_s3_copy: "python3 /config/scripts/s3-backup-status.py"
 
 template:
 # Sensor to query all bucket sizes from S3 region eu-west-2 using CloudWatch
@@ -212,3 +213,87 @@ template:
         availability: "{{ is_number(states('sensor.backup_size_s3_storage_class_other')) }}"
         state: >
           {{ (states('sensor.backup_size_s3_storage_class_other') | float(0) / 1073741824) | round(2) }}
+
+  - sensor:
+      - name: "S3 Backup Status - Local"
+        unique_id: last_backup_s3_copy_local
+        default_entity_id: sensor.last_backup_s3_copy_local
+
+        state: >
+          {% if s3_result.returncode == 0 %}
+            {{ (s3_result.stdout | from_json) | count }}
+          {% else %}
+            {{ this.state }}
+          {% endif %}
+
+        attributes:
+          backups: >
+            {% if s3_result.returncode == 0 %}
+              {{ s3_result.stdout | from_json }}
+            {% else %}
+              {{ this.attributes.backups | default([]) }}
+            {% endif %}
+
+    triggers:
+      - trigger: time_pattern
+        minutes: "/5"
+
+      - trigger: event
+        event_type: last_backup_s3_copy_refresh
+
+    actions:
+      - action: shell_command.last_backup_s3_copy
+        response_variable: s3_result
+
+# Individual backup-job sensors. 
+  - sensor:
+      - name: "S3 Backup Status - PSST"
+        unique_id: last_backup_s3_copy_psst
+        default_entity_id: sensor.last_backup_s3_copy_psst
+        device_class: timestamp
+        availability: >
+          {% set backups = state_attr('sensor.last_backup_s3_copy_local', 'backups') | default([], true) %}
+          {{ (backups | selectattr('id', 'eq', 'c5b48d20-d2c9-4542-a532-98bdd1be4f31') | list | count) > 0 }}
+        state: >
+          {% set backups = state_attr('sensor.last_backup_s3_copy_local', 'backups') | default([], true) %}
+          {% set matches = backups | selectattr('id', 'eq', 'c5b48d20-d2c9-4542-a532-98bdd1be4f31') | list %}
+          {{ matches[0].timestamp if matches else none }}
+        attributes:
+          message: >
+            {% set backups = state_attr('sensor.last_backup_s3_copy_local', 'backups') | default([], true) %}
+            {% set matches = backups | selectattr('id', 'eq', 'c5b48d20-d2c9-4542-a532-98bdd1be4f31') | list %}
+            {{ matches[0].message if matches else none }}
+
+      - name: "S3 Backup Status - Rainbow One"
+        unique_id: last_backup_s3_copy_rainbow_one
+        default_entity_id: sensor.last_backup_s3_copy_rainbow_one
+        device_class: timestamp
+        availability: >
+          {% set backups = state_attr('sensor.last_backup_s3_copy_local', 'backups') | default([], true) %}
+          {{ (backups | selectattr('id', 'eq', '487e42a4-e6e0-49bf-8837-f409f35e143f') | list | count) > 0 }}
+        state: >
+          {% set backups = state_attr('sensor.last_backup_s3_copy_local', 'backups') | default([], true) %}
+          {% set matches = backups | selectattr('id', 'eq', '487e42a4-e6e0-49bf-8837-f409f35e143f') | list %}
+          {{ matches[0].timestamp if matches else none }}
+        attributes:
+          message: >
+            {% set backups = state_attr('sensor.last_backup_s3_copy_local', 'backups') | default([], true) %}
+            {% set matches = backups | selectattr('id', 'eq', '487e42a4-e6e0-49bf-8837-f409f35e143f') | list %}
+            {{ matches[0].message if matches else none }}
+
+      - name: "S3 Backup Status - Miniflash"
+        unique_id: last_backup_s3_copy_miniflash
+        default_entity_id: sensor.last_backup_s3_copy_miniflash
+        device_class: timestamp
+        availability: >
+          {% set backups = state_attr('sensor.last_backup_s3_copy_local', 'backups') | default([], true) %}
+          {{ (backups | selectattr('id', 'eq', '685522d7-a634-480f-b8b3-2437a4f701be') | list | count) > 0 }}
+        state: >
+          {% set backups = state_attr('sensor.last_backup_s3_copy_local', 'backups') | default([], true) %}
+          {% set matches = backups | selectattr('id', 'eq', '685522d7-a634-480f-b8b3-2437a4f701be') | list %}
+          {{ matches[0].timestamp if matches else none }}
+        attributes:
+          message: >
+            {% set backups = state_attr('sensor.last_backup_s3_copy_local', 'backups') | default([], true) %}
+            {% set matches = backups | selectattr('id', 'eq', '685522d7-a634-480f-b8b3-2437a4f701be') | list %}
+            {{ matches[0].message if matches else none }}
