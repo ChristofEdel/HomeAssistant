@@ -22,7 +22,7 @@ lovelace:
   dashboards:
     energy-dashboard:
       mode: yaml
-      filename: dashboards/energy-dashboard.yaml
+      filename: dashboards/energy/energy-dashboard.yaml
       title: Energy
       icon: mdi:lightning-bolt-outline
       show_in_sidebar: true

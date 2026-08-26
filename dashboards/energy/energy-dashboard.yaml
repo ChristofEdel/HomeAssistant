@@ -1,5 +1,5 @@
 # dashboard/energy-dashboard.yaml
-apexcharts_card_templates: !include apexcharts-card-templates.yaml
+apexcharts_card_templates: !include ../apexcharts-card-templates.yaml
 
 views:
   - !include energy-view-power.yaml

@@ -8,7 +8,7 @@ cards: []
 sections:
 
   # Alarm banners
-  - !include components/power-alarms.yaml
+  - !include ../components/power-alarms.yaml
 
   # the live energy dashboard, showing current power flows and battery charge.
   - type: grid
@@ -28,8 +28,8 @@ sections:
         battery_entities:
           - entity: sensor.victron_real_time_battery_power_calculated
         consumer_entities:
-          - entity: sensor.victron_real_time_power_consumption
-            name: Consumption
+          - entity: sensor.real_time_power_aircon
+            name: A/C
           - entity: sensor.ohme_home_go_power
             name: EV Charger
         invert_battery_flows: true
