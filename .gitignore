@@ -34,3 +34,4 @@ __pycache__/
 /custom_components/uix/
 /s3-bucket-sizes-debug/
 /www/community/custom-card-features/
+/dashboards/test/

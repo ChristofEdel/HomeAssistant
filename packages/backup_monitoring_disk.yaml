@@ -8,6 +8,11 @@
 #    - backup_size_miniflash_gb           /shared/Backup/PSST
 #    - backup_size_home_assistant_gb      Homeassistant Docker: /config/Backup
 #
+# and the following sensors monitoring whether the PCs are online or not
+#
+#    - psst_online
+#    - rainbow_one_online
+#
 # When the data is unavailable temporarily (e.g., after restart) these sensors retain their previous value
 #
 
@@ -80,13 +85,88 @@ template:
           - unknown
           - unavailable
 
+  - sensor:
+      - name: PSST Online
+        unique_id: psst_online
+        state: "{{ trigger.to_state.state }}"
+        attributes:
+          last_seen: >-
+            {% if trigger.to_state.state == 'ON' %}
+              {{ trigger.to_state.attributes.get('checked_at') }}
+            {% elif this.attributes.last_seen is defined %}
+              {{ this.attributes.last_seen }}
+            {% else %}
+              {{ none }}
+            {% endif %}
+    triggers:
+      - trigger: state
+        entity_id: sensor.psst_online_raw
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ trigger.to_state is not none and trigger.to_state.state in ['ON', 'OFF'] }}
 
-#
+  - sensor:
+      - name: Rainbow One Online
+        unique_id: rainbow_one_online
+        state: "{{ trigger.to_state.state }}"
+        attributes:
+          last_seen: >-
+            {% if trigger.to_state.state == 'ON' %}
+              {{ trigger.to_state.attributes.get('checked_at') }}
+            {% elif this.attributes.last_seen is defined %}
+              {{ this.attributes.last_seen }}
+            {% else %}
+              {{ none }}
+            {% endif %}
+    triggers:
+      - trigger: state
+        entity_id: sensor.rainbow_one_online_raw
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ trigger.to_state is not none and trigger.to_state.state in ['ON', 'OFF'] }}
+
+  - sensor:
+      - name: Last Seen - PSST
+        unique_id: last_seen_psst
+        device_class: timestamp
+        state: "{{ trigger.to_state.attributes.get('last_seen') }}"
+    triggers:
+      - trigger: state
+        entity_id: sensor.psst_online
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ trigger.to_state is not none
+             and trigger.to_state.attributes.get('last_seen') not in [none, ''] }}
+
+  - sensor:
+      - name: Last Seen - Rainbow One
+        unique_id: last_seen_rainbow_one
+        device_class: timestamp
+        state: "{{ trigger.to_state.attributes.get('last_seen') }}"
+    triggers:
+      - trigger: state
+        entity_id: sensor.rainbow_one_online
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ trigger.to_state is not none
+             and trigger.to_state.attributes.get('last_seen') not in [none, ''] }}
+
+
+#-------------------------------------------------------------------------------------------------
 # Four command line sensors to measure the size of backups on the disk
+#
+#  - backup_size_psst
+#  - backup_size_rainbow_one
+#  - backup_size_miniflash
+#  - backup_size_home_assistant
 #
 # After a restart, these sensors have NO VALUE so should not be used for displays in graphs ets
 # Use the GB sensors defined above instead
-#
+#-------------------------------------------------------------------------------------------------
 command_line:
   - sensor:
       name: "Backup Size - PSST"
@@ -128,6 +208,15 @@ command_line:
       scan_interval: 60
       value_template: "{{ value | int }}"
 
+#-------------------------------------------------------------------------------------------------
+# Four command line sensors to measure the last time a backup was taken
+#
+#  - last_backup_psst
+#  - last_backup_rainbow_one
+#  - last_backup_miniflash
+#  - last_backup_home_assistant
+#
+#-------------------------------------------------------------------------------------------------
   - sensor:
       name: last_backup_psst
       unique_id: last_backup_psst
@@ -167,3 +256,42 @@ command_line:
         find "/config/backups" -type f
         -exec stat -c '%Y' {} \; | sort -nr | head -1 |
         xargs -I{} date -u -d '@{}' '+%Y-%m-%dT%H:%M:%SZ'
+
+#-------------------------------------------------------------------------------------------------
+# Two command line sensors to represent wheter a PC is online or not
+
+#  - psst_online_raw
+#  - rainbow_one_online_raw
+
+# After a restart, these sensors have NO VALUE so should not be used for 
+# Use the equivalent psst_online / rainbow_one_online sensors instead
+#-------------------------------------------------------------------------------------------------
+  - sensor:
+      name: PSST Online Raw
+      unique_id: psst_online_raw
+      scan_interval: 60
+      command_timeout: 5
+      command: >-
+        if ping -c 1 -W 2 psst.internal >/dev/null 2>&1; then
+          printf '{"state":"ON","checked_at":"%s"}\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')";
+        else
+          printf '{"state":"OFF","checked_at":"%s"}\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')";
+        fi
+      value_template: "{{ value_json.state }}"
+      json_attributes:
+        - checked_at
+
+  - sensor:
+      name: Rainbow One Online Raw
+      unique_id: rainbow_one_online_raw
+      scan_interval: 60
+      command_timeout: 5
+      command: >-
+        if ping -c 1 -W 2 rainbow-one.internal >/dev/null 2>&1; then
+          printf '{"state":"ON","checked_at":"%s"}\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')";
+        else
+          printf '{"state":"OFF","checked_at":"%s"}\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')";
+        fi
+      value_template: "{{ value_json.state }}"
+      json_attributes:
+        - checked_at
