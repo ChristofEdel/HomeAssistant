@@ -1,6 +1,9 @@
 # dashboard/energy-dashboard.yaml
 apexcharts_card_templates: !include ../apexcharts-card-templates.yaml
 
+decluttering_templates:
+  !include ../components/energy-usage-graph-day.yaml
+
 views:
   - !include energy-view-power.yaml
   - !include energy-view-solar.yaml

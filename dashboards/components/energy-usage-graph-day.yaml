@@ -1,0 +1,292 @@
+#
+# Decluttering template "energy_usage_graph_day"
+#
+# Usage:
+#
+#  - type: custom:decluttering-card
+#    template: energy_usage_graph_day
+#    grid_options:
+#      columns: full
+#      rows: 1
+#    variables:
+#      - date: input_datetime.energy_chart_day
+#      - solar: sensor.solar_energy_total_victron
+#      - grid_import: sensor.grid_energy_import
+#      - grid_export: sensor.grid_energy_export
+#      - battery_charged: sensor.battery_energy_charged
+#      - battery_discharged: sensor.battery_energy_discharged
+#
+
+energy_usage_graph_day:
+
+  card:
+    type: custom:apexcharts-card
+
+    # Covers 24 hours, and always the full day
+    graph_span: 24h
+    update_interval: 5min       # Prevent frequent automatic refresh
+    span:
+      start: day
+
+    apex_config:
+      # ------------------------------------------------------------
+      # General chart, axis and grid configuration
+      # ------------------------------------------------------------
+      chart:
+        height: 300px
+      yaxis:
+        title:
+          text: kWh
+        decimalsInFloat: 1
+      xaxis:
+        type: category
+        tickPlacement: between
+        tickAmount: 8           # one label every 3 hours
+        labels:
+          rotate: 0
+          offsetX: -3.5         # center labels below vertical grid line
+      grid:
+        strokeDashArray: 0      # Solid grid lines
+        xaxis:
+          lines:
+            show: true
+      plotOptions:
+        bar:
+          columnWidth: 80%
+          borderRadius: 2
+          borderRadiusApplication: end
+      legend:
+        show: true
+      stroke:
+        show: true
+        width: 1
+        dashArray: 0
+
+      # ------------------------------------------------------------
+      # Custom tooltip, with the series in the order they appear
+      # in the chart top-to-bottom, and with vertically aligned
+      # values
+      # ------------------------------------------------------------
+      tooltip:
+        enabled: true
+        shared: false
+        intersect: true
+        followCursor: true
+        custom: |
+          EVAL:function({ series, seriesIndex, dataPointIndex, w }) {
+            const label = w.globals.labels[dataPointIndex];
+            const order = [2, 1, 0, 3, 4];
+
+            let html =
+              '<div style="padding:6px 8px;">' +
+              '<div style="font-weight:600; margin-bottom:4px;">' +
+              label +
+              '</div>' +
+              '<table style="border-collapse:collapse;">';
+
+            order.forEach(i => {
+              const value = series[i][dataPointIndex];
+
+              if (value == null) return;
+
+              html +=
+                '<tr>' +
+                '<td style="padding:1px 10px 1px 0;">' +
+                '<span style="display:inline-block;width:8px;height:8px;' +
+                'border-radius:50%;margin-right:6px;background:' +
+                w.globals.colors[i] +
+                ';"></span>' +
+                w.globals.seriesNames[i] +
+                '</td>' +
+                '<td style="padding:1px 0;text-align:right;font-weight:600;">' +
+                Math.abs(value).toFixed(2) +
+                ' kWh</td>' +
+                '</tr>';
+            });
+
+            return html + '</table></div>';
+          }
+
+    # ------------------------------------------------------------
+    # Tweak to the vertical grid
+    # in a column chart, a vertical line is produced for every column
+    # this hides the ones we do not want
+    # ------------------------------------------------------------
+    card_mod:
+      style: |
+        .apexcharts-gridlines-vertical line {
+          display: none;
+        }
+
+        .apexcharts-gridlines-vertical line:nth-child(3n+1) {
+          display: block;
+        }
+
+    # ------------------------------------------------------------
+    # Stacked column chart configuration
+    # ------------------------------------------------------------
+    stacked: true
+    all_series_config:
+      type: column
+      unit: kWh
+      float_precision: 2
+      opacity: 0.5
+      show:
+        legend_value: false
+
+      # Shared data generator for all series EXCEPT solar which has its own
+      data_generator: |
+
+        /* Get the selected date from the input_datetime helper */
+        const selected = hass.states['[[date]]']?.state?.slice(0, 10);
+        
+        /* Keep the 24 categories even if the date helper is unavailable */
+        if (!selected || !/^\d{4}-\d{2}-\d{2}$/.test(selected)) {
+          return Array.from({ length: 24 }, (_, hour) => ({
+            x: `${String(hour).padStart(2, '0')}:00`,
+            y: null
+          }));
+        }
+        
+        /* Build local midnight -> next local midnight for the selected day */
+        const [year, month, day] = selected.split('-').map(Number);
+        const periodStart = new Date(year, month - 1, day);
+        const periodEnd = new Date(year, month - 1, day + 1);
+
+        /* Get the statistics for the entity of the series */
+        const id = entity.entity_id;
+        const stats = await hass.callWS({
+          type: 'recorder/statistics_during_period',
+          start_time: periodStart.toISOString(),
+          end_time: periodEnd.toISOString(),
+          statistic_ids: [id],
+          period: 'hour',
+          types: ['change']
+        });
+
+        /* Map them to {hour, value} tuples */
+        const values = new Map(
+          (stats[id] || []).map(x => [
+            new Date(x.start).getHours(),
+            x.change
+          ])
+        );
+
+        /* Adjustment factor for "negative" columns */
+        const factor =
+          id === '[[battery_charged]]' || id === '[[grid_export]]' ? -1 : 1;
+
+        /* Iterate all hours of the day from 0 to 23 and return one value for each hour */
+        /* no value or zero are represented as null */
+        return Array.from({ length: 24 }, (_, hour) => {
+          const value = values.get(hour);
+          return {
+            x: `${String(hour).padStart(2, '0')}:00`,
+            y: value == null || value === 0 ? null : value * factor
+          };
+        });
+
+
+    series:
+
+      # ------------------------------------------------------------
+      # SOLAR USED
+      # ------------------------------------------------------------
+      - entity: '[[solar]]'
+        name: Solar used
+        stack_group: energy
+        color: var(--energy-solar-color)
+
+        data_generator: |
+          /* Get the selected date from the input_datetime helper */
+          const selected = hass.states['[[date]]']?.state?.slice(0, 10);
+
+          /* Keep the 24 categories even if the date helper is unavailable */
+          if (!selected || !/^\d{4}-\d{2}-\d{2}$/.test(selected)) {
+            return Array.from({ length: 24 }, (_, hour) => ({
+              x: `${String(hour).padStart(2, '0')}:00`,
+              y: null
+            }));
+          }
+
+          /* Build local midnight -> next local midnight for the selected day */
+          const [year, month, day] = selected.split('-').map(Number);
+          const periodStart = new Date(year, month - 1, day);
+          const periodEnd = new Date(year, month - 1, day + 1);
+
+          /* Get the statistics for the entities required to calculate the series */
+          const ids = [
+            '[[solar]]',
+            '[[grid_export]]',
+            '[[battery_charged]]'
+          ];
+
+          const stats = await hass.callWS({
+            type: 'recorder/statistics_during_period',
+            start_time: periodStart.toISOString(),
+            end_time: periodEnd.toISOString(),
+            statistic_ids: ids,
+            period: 'hour',
+            types: ['change']
+          });
+
+          /* Map them to {hour, value} tuples */
+          const toMap = (id) =>
+            new Map(
+              (stats[id] || []).map(x => [
+                new Date(x.start).getHours(),
+                x.change
+              ])
+            );
+
+          const solar = toMap('[[solar]]');
+          const exported = toMap('[[grid_export]]');
+          const charged = toMap('[[battery_charged]]');
+
+          /* Iterate all hours of the day from 0 to 23 and return one value for each hour */
+          /* no value or zero are represented as null */
+          return Array.from({ length: 24 }, (_, hour) => {
+
+            const label = `${String(hour).padStart(2, '0')}:00`;
+
+            /* get the raw solar production */
+            const produced = solar.get(hour);
+            if (produced == null) { return { x: label, y: null }; }
+
+            /* deduct what was exported or put into the battery */
+            const used = Math.max(
+              0,
+              produced
+                - (exported.get(hour) ?? 0)
+                - (charged.get(hour) ?? 0)
+            );
+
+            /* Return the tuple */
+            return {
+              x: label,
+              y: used === 0 ? null : used
+            };
+          });
+
+      # ------------------------------------------------------------
+      # All other entities
+      # ------------------------------------------------------------
+      - entity: '[[battery_discharged]]'
+        name: Battery used
+        stack_group: energy
+        color: var(--energy-battery-out-color)
+
+      - entity: '[[grid_import]]'
+        name: Import
+        stack_group: energy
+        color: var(--energy-grid-consumption-color)
+
+      - entity: '[[battery_charged]]'
+        name: Battery charged
+        stack_group: energy
+        color: var(--energy-battery-in-color)
+
+      - entity: '[[grid_export]]'
+        name: Export
+        stack_group: energy
+        color: var(--energy-grid-return-color)

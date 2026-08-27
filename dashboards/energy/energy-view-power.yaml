@@ -215,14 +215,18 @@ sections:
         heading: Daily
         heading_style: subtitle
 
-      - type: energy-date-selection
-        vertical_opening_direction: auto
-        opening_direction: auto
-        card_mod:
-          style:
-            hui-energy-period-selector$: |
-              .date-picker-icon {
-                display: none !important;
-              }
-              
-      - type: energy-usage-graph
+      - type: custom:energy-day-selector-card
+        entity: input_datetime.energy_chart_day
+
+      - type: custom:decluttering-card
+        template: energy_usage_graph_day
+        grid_options:
+          columns: full
+          rows: 1
+        variables:
+          - date: input_datetime.energy_chart_day
+          - solar: sensor.solar_energy_total_victron
+          - grid_import: sensor.grid_energy_import
+          - grid_export: sensor.grid_energy_export
+          - battery_charged: sensor.battery_energy_charged
+          - battery_discharged: sensor.battery_energy_discharged
