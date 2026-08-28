@@ -29,6 +29,80 @@ card:
     # ------------------------------------------------------------
     chart:
       height: 300px
+      events:
+        mounted: |
+          EVAL:function(chartContext, config) {
+            const labels = config.globals.labels || [];
+            if (!labels.length) return;
+
+            const last = labels[labels.length - 1];
+            const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(last);
+            if (!match) return;
+
+            const endYear = Number(match[1]);
+            const endMonth = Number(match[2]);
+
+            const showDate = value => {
+              const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+              if (!m) return false;
+
+              const year = Number(m[1]);
+              const month = Number(m[2]);
+              const day = Number(m[3]);
+
+              /* In the final month, anchor to 1, 5, 10, 15, ... */
+              if (year === endYear && month === endMonth) {
+                return day === 1 || day % 5 === 0;
+              }
+
+              /* Before the final month, count backwards in 5-day steps
+              ** from the first day of the following month. */
+              const date = new Date(year, month - 1, day);
+              const nextMonth = new Date(year, month, 1);
+              const daysToNextMonth = Math.round((nextMonth - date) / 86400000);
+              return daysToNextMonth > 0 && daysToNextMonth % 5 === 0;
+            };
+
+            const lines = chartContext.el.querySelectorAll('.apexcharts-gridlines-vertical line');
+            lines.forEach((line, index) => {
+              line.style.display = showDate(labels[index]) ? 'block' : 'none';
+            });
+          }
+        updated: |
+          EVAL:function(chartContext, config) {
+            const labels = config.globals.labels || [];
+            if (!labels.length) return;
+
+            const last = labels[labels.length - 1];
+            const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(last);
+            if (!match) return;
+
+            const endYear = Number(match[1]);
+            const endMonth = Number(match[2]);
+
+            const showDate = value => {
+              const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+              if (!m) return false;
+
+              const year = Number(m[1]);
+              const month = Number(m[2]);
+              const day = Number(m[3]);
+
+              if (year === endYear && month === endMonth) {
+                return day === 1 || day % 5 === 0;
+              }
+
+              const date = new Date(year, month - 1, day);
+              const nextMonth = new Date(year, month, 1);
+              const daysToNextMonth = Math.round((nextMonth - date) / 86400000);
+              return daysToNextMonth > 0 && daysToNextMonth % 5 === 0;
+            };
+
+            const lines = chartContext.el.querySelectorAll('.apexcharts-gridlines-vertical line');
+            lines.forEach((line, index) => {
+              line.style.display = showDate(labels[index]) ? 'block' : 'none';
+            });
+          }
     yaxis:
       title:
         text: kWh
@@ -38,10 +112,39 @@ card:
       tickPlacement: between
       labels:
         rotate: 0
+        hideOverlappingLabels: false
         formatter: |
-          EVAL:function(value) {
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-            const [year, month, day] = value.split('-').map(Number);
+          EVAL:function(value, timestamp, opts) {
+            const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+            if (!match) return value;
+
+            const year = Number(match[1]);
+            const month = Number(match[2]);
+            const day = Number(match[3]);
+
+            const labels = opts?.w?.globals?.labels || [];
+            const last = labels[labels.length - 1];
+            const endMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(last || '');
+            if (!endMatch) return '';
+
+            const endYear = Number(endMatch[1]);
+            const endMonth = Number(endMatch[2]);
+            let show = false;
+
+            /* In the final month, anchor to 1, 5, 10, 15, ... */
+            if (year === endYear && month === endMonth) {
+              show = day === 1 || day % 5 === 0;
+            } else {
+              /* Before the final month, count backwards in 5-day steps
+              ** from the first day of the following month. */
+              const date = new Date(year, month - 1, day);
+              const nextMonth = new Date(year, month, 1);
+              const daysToNextMonth = Math.round((nextMonth - date) / 86400000);
+              show = daysToNextMonth > 0 && daysToNextMonth % 5 === 0;
+            }
+
+            if (!show) return '';
+
             return new Date(year, month - 1, day).toLocaleDateString(undefined, {
               day: 'numeric',
               month: 'short'
@@ -123,6 +226,15 @@ card:
 
   card_mod:
     style: |
+      /* ------------------------------------------------------------
+      ** Vertical grid lines are selected by the ApexCharts mounted/
+      ** updated handlers above so they follow the same calendar-date
+      ** pattern as the x-axis labels. Hide all until that handler runs.
+      ** -----------------------------------------------------------*/
+      .apexcharts-gridlines-vertical line {
+        display: none;
+      }
+
       /* ------------------------------------------------------------
       ** Hide empty legend entries because apexchart still generates
       ** the containing divs (which take up space even if they are empty)
