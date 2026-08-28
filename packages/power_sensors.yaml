@@ -338,4 +338,16 @@ homeassistant:
     sensor.battery_energy_discharged:
       state_class: total_increasing
 
-
+input_datetime:
+  energy_chart_day:
+    name: Day for Energy Chart
+    has_date: true
+    has_time: false
+  energy_chart_range_start:
+    name: Start date for Energy Chart
+    has_date: true
+    has_time: false
+  energy_chart_range_end:
+    name: End date for Energy Chart
+    has_date: true
+    has_time: false

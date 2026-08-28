@@ -15,10 +15,14 @@
 #      - grid_export: sensor.grid_energy_export
 #      - battery_charged: sensor.battery_energy_charged
 #      - battery_discharged: sensor.battery_energy_discharged
+#      - battery_percent: sensor.victron_gx_dc_battery_charge
 #
 
 card:
   type: custom:apexcharts-card
+
+  experimental:                       # We are using direct apex chart configuration
+    disable_config_validation: true   # that is not part of the standard configuration
 
   # Covers 24 hours, and always the full day
   graph_span: 24h
@@ -32,10 +36,35 @@ card:
     # ------------------------------------------------------------
     chart:
       height: 300px
+
     yaxis:
+    - seriesName:
+      - Solar used
+      - Battery used
+      - Import
+      - Battery charged
+      - Export
       title:
         text: kWh
-      decimalsInFloat: 1
+      labels:
+        formatter: |
+          EVAL:function(value) {
+            return Number(value).toFixed(1);
+          }
+    - seriesName:
+      - Battery
+      - Battery (min)
+      - Battery (max)
+      opposite: true
+      min: 0
+      max: 100
+      tickAmount: 5
+      labels:
+        formatter: |
+          EVAL:function(value) {
+            return Number(value).toFixed(0) + "%";
+          }
+
     xaxis:
       type: category
       tickPlacement: between
@@ -43,18 +72,23 @@ card:
       labels:
         rotate: 0
         offsetX: -3.5         # center labels below vertical grid line
+
     grid:
       strokeDashArray: 0      # Solid grid lines
       xaxis:
         lines:
           show: true
+
     plotOptions:
       bar:
         columnWidth: 80%
         borderRadius: 2
         borderRadiusApplication: end
+
     legend:
       show: true
+      clusterGroupedSeries: false
+
     stroke:
       show: true
       width: 1
@@ -102,6 +136,29 @@ card:
               '</tr>';
           });
 
+          const batteryIndex = w.globals.seriesNames.indexOf('Battery');
+
+          if (batteryIndex >= 0) {
+            const range = w.config.series[batteryIndex].data[dataPointIndex]?.y;
+
+            if (Array.isArray(range) && range.length === 2) {
+              html +=
+                '<tr>' +
+                '<td style="padding:1px 10px 1px 0;">' +
+                '<span style="display:inline-block;width:8px;height:8px;' +
+                'border-radius:50%;margin-right:6px;background:' +
+                w.globals.colors[batteryIndex] +
+                ';"></span>' +
+                'Battery' +
+                '</td>' +
+                '<td style="padding:1px 0;text-align:right;font-weight:600;">' +
+                (Number(range[0]).toFixed(0) != Number(range[1]).toFixed(0) ?  Number(range[0]).toFixed(0) + '-' : '') +
+                Number(range[1]).toFixed(0) +
+                '%</td>' +
+                '</tr>';
+            }
+          }
+
           return html + '</table></div>';
         }
 
@@ -126,6 +183,50 @@ card:
       ** -----------------------------------------------------------*/
       .apexcharts-legend-series:has(.apexcharts-legend-text:empty) {
         display: none !important;
+      }
+
+      /* ------------------------------------------------------------
+      ** Right-align labels on the second/right-hand Y axis
+      ** -----------------------------------------------------------*/
+      .apexcharts-yaxis[rel="1"] text {
+        text-anchor: end !important;
+        transform: translateX(2em);
+      }
+
+      /* ------------------------------------------------------------
+      ** Make legend markers match the series
+      ** Make legend a two-row grid layout and reduce bottom margin
+      ** -----------------------------------------------------------*/
+      .apexcharts-legend-marker path {
+        fill-opacity: 0.5 !important;
+        stroke-opacity: 1.0 !important;
+      }
+
+      .apexcharts-legend {
+        display: grid !important;
+        grid-template-columns: repeat(3, max-content); /* Forces exactly 3 items per row */
+        justify-content: center;
+        column-gap: 1em;
+        row-gap: 0.25em;
+      }
+
+      .apexcharts-legend-series {
+        margin: 0 !important;
+      }
+
+      #graph {
+        min-height: 0 !important;
+        margin-bottom: 5px;
+      }
+
+      /* ------------------------------------------------------------
+      ** format for the Battery area - click through, no lines
+      ** -----------------------------------------------------------*/
+      .apexcharts-series .apexcharts-rangeArea {
+        stroke-width: 0px !important;
+      }
+      .apexcharts-series[seriesName="Battery"] {
+        pointer-events: none !important;
       }
 
   # ------------------------------------------------------------
@@ -198,6 +299,8 @@ card:
 
     # ------------------------------------------------------------
     # SOLAR USED
+    #
+    # Calculated as (total) solar - grid_export - battery_charged 
     # ------------------------------------------------------------
     - entity: '[[solar]]'
       name: Solar used
@@ -300,6 +403,7 @@ card:
 
     # ------------------------------------------------------------
     # Dummy series for display in legend
+    # in the order we want them to appear
     # ------------------------------------------------------------
     - entity: '[[grid_import]]'
       name: Import
@@ -340,4 +444,135 @@ card:
       show:
         in_legend: true
       data_generator: "return [{ x: '00:00', y: null }];"
+
+    # ------------------------------------------------------------
+    # Battery charge range
+    #
+    # "rangeArea" is not "officially" supported by the apexchart-card
+    # hence the disable_config_validation: true at the top
+    # ------------------------------------------------------------
+    - entity: '[[battery_percent]]'
+      name: Battery
+      type: rangeArea
+      unit: '%'
+      opacity: 0.15
+      stroke_width: 2
+      curve: smooth
+      extend_to: false
+      show:
+        in_legend: true
+        legend_value: false
+      color: black
+      data_generator: |
+        const selected = hass.states['[[date]]']?.state?.slice(0, 10);
+        if (!selected || !/^\d{4}-\d{2}-\d{2}$/.test(selected)) {
+          return Array.from({ length: 24 }, (_, hour) => ({
+            x: `${String(hour).padStart(2, '0')}:00`,
+            y: null
+          }));
+        }
+        const [year, month, day] = selected.split('-').map(Number);
+        const periodStart = new Date(year, month - 1, day);
+        const periodEnd = new Date(year, month - 1, day + 1);
+        const id = entity.entity_id;
+        const stats = await hass.callWS({
+          type: 'recorder/statistics_during_period',
+          start_time: periodStart.toISOString(),
+          end_time: periodEnd.toISOString(),
+          statistic_ids: [id],
+          period: 'hour',
+          types: ['min', 'max']
+        });
+        const values = new Map(
+          (stats[id] || []).map(x => [
+            new Date(x.start).getHours(),
+            x.min == null || x.max == null ? null : [x.min, x.max]
+          ])
+        );
+        return Array.from({ length: 24 }, (_, hour) => ({
+          x: `${String(hour).padStart(2, '0')}:00`,
+          y: values.get(hour) ?? null
+        }));
+
+    - entity: '[[battery_percent]]'
+      name: Battery (min)
+      type: line
+      unit: '%'
+      curve: smooth
+      extend_to: false
+      show:
+        in_legend: false
+        legend_value: false
+      color: black
+      data_generator: |
+        const selected = hass.states['[[date]]']?.state?.slice(0, 10);
+        if (!selected || !/^\d{4}-\d{2}-\d{2}$/.test(selected)) {
+          return Array.from({ length: 24 }, (_, hour) => ({
+            x: `${String(hour).padStart(2, '0')}:00`,
+            y: null
+          }));
+        }
+        const [year, month, day] = selected.split('-').map(Number);
+        const periodStart = new Date(year, month - 1, day);
+        const periodEnd = new Date(year, month - 1, day + 1);
+        const id = entity.entity_id;
+        const stats = await hass.callWS({
+          type: 'recorder/statistics_during_period',
+          start_time: periodStart.toISOString(),
+          end_time: periodEnd.toISOString(),
+          statistic_ids: [id],
+          period: 'hour',
+          types: ['min']
+        });
+        const values = new Map(
+          (stats[id] || []).map(x => [
+            new Date(x.start).getHours(),
+            x.min
+          ])
+        );
+        return Array.from({ length: 24 }, (_, hour) => ({
+          x: `${String(hour).padStart(2, '0')}:00`,
+          y: values.get(hour) ?? null
+        }));
+
+    - entity: '[[battery_percent]]'
+      name: Battery (max)
+      type: line
+      unit: '%'
+      curve: smooth
+      extend_to: false
+      show:
+        in_legend: false
+        legend_value: false
+      color: black
+      data_generator: |
+        const selected = hass.states['[[date]]']?.state?.slice(0, 10);
+        if (!selected || !/^\d{4}-\d{2}-\d{2}$/.test(selected)) {
+          return Array.from({ length: 24 }, (_, hour) => ({
+            x: `${String(hour).padStart(2, '0')}:00`,
+            y: null
+          }));
+        }
+        const [year, month, day] = selected.split('-').map(Number);
+        const periodStart = new Date(year, month - 1, day);
+        const periodEnd = new Date(year, month - 1, day + 1);
+        const id = entity.entity_id;
+        const stats = await hass.callWS({
+          type: 'recorder/statistics_during_period',
+          start_time: periodStart.toISOString(),
+          end_time: periodEnd.toISOString(),
+          statistic_ids: [id],
+          period: 'hour',
+          types: ['max']
+        });
+        const values = new Map(
+          (stats[id] || []).map(x => [
+            new Date(x.start).getHours(),
+            x.max
+          ])
+        );
+        return Array.from({ length: 24 }, (_, hour) => ({
+          x: `${String(hour).padStart(2, '0')}:00`,
+          y: values.get(hour) ?? null
+        }));
 
