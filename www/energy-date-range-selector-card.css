@@ -1,0 +1,52 @@
+:host {
+  display: block;
+}
+
+ha-card {
+  height: 100%;
+  overflow: visible;
+}
+
+.card-content {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.content {
+  display: flex;
+  align-items: center;
+}
+
+.date-range-selector {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.date-range-label {
+  font-size: var(--ha-font-size-xl);
+  line-height: var(--ha-line-height-condensed);
+  font-weight: var(--ha-font-weight-medium);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+ha-button {
+  margin-inline-end: var(--ha-space-2);
+}
+
+ha-date-range-picker {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.error {
+  color: var(--error-color);
+}

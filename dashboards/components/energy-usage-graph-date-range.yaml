@@ -1,15 +1,16 @@
 #
-# Decluttering template "energy_usage_graph_day"
+# Decluttering template "energy_usage_graph_date_range"
 #
 # Usage:
 #
 #  - type: custom:decluttering-card
-#    template: energy_usage_graph_day
+#    template: energy_usage_graph_date_range
 #    grid_options:
 #      columns: full
 #      rows: 1
 #    variables:
-#      - date: input_datetime.energy_chart_day
+#      - date_start: input_datetime.energy_chart_range_start
+#      - date_end: input_datetime.energy_chart_range_end
 #      - solar: sensor.solar_energy_total_victron
 #      - grid_import: sensor.grid_energy_import
 #      - grid_export: sensor.grid_energy_export
@@ -20,11 +21,7 @@
 card:
   type: custom:apexcharts-card
 
-  # Covers 24 hours, and always the full day
-  graph_span: 24h
   update_interval: 5min       # Prevent frequent automatic refresh
-  span:
-    start: day
 
   apex_config:
     # ------------------------------------------------------------
@@ -39,10 +36,17 @@ card:
     xaxis:
       type: category
       tickPlacement: between
-      tickAmount: 8           # one label every 3 hours
       labels:
         rotate: 0
-        offsetX: -3.5         # center labels below vertical grid line
+        formatter: |
+          EVAL:function(value) {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+            const [year, month, day] = value.split('-').map(Number);
+            return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+              day: 'numeric',
+              month: 'short'
+            });
+          }
     grid:
       strokeDashArray: 0      # Solid grid lines
       xaxis:
@@ -72,7 +76,19 @@ card:
       followCursor: true
       custom: |
         EVAL:function({ series, seriesIndex, dataPointIndex, w }) {
-          const label = w.globals.labels[dataPointIndex];
+          const rawLabel = w.globals.labels[dataPointIndex];
+          let label = rawLabel;
+
+          if (/^\d{4}-\d{2}-\d{2}$/.test(rawLabel)) {
+            const [year, month, day] = rawLabel.split('-').map(Number);
+            label = new Date(year, month - 1, day).toLocaleDateString(undefined, {
+              weekday: 'short',
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric'
+            });
+          }
+
           const order = [2, 1, 0, 3, 4];
 
           let html =
@@ -108,20 +124,7 @@ card:
   card_mod:
     style: |
       /* ------------------------------------------------------------
-      ** Tweak to the vertical grid
-      ** in a column chart, a vertical line is produced for every column
-      ** this hides the ones we do not want
-      ** -----------------------------------------------------------*/
-      .apexcharts-gridlines-vertical line {
-        display: none;
-      }
-
-      .apexcharts-gridlines-vertical line:nth-child(3n+1) {
-        display: block;
-      }
-
-      /* ------------------------------------------------------------
-      ** Hide empty legend entries because apexchart still generates 
+      ** Hide empty legend entries because apexchart still generates
       ** the containing divs (which take up space even if they are empty)
       ** -----------------------------------------------------------*/
       .apexcharts-legend-series:has(.apexcharts-legend-text:empty) {
@@ -144,37 +147,56 @@ card:
     # Shared data generator for all series EXCEPT solar which has its own
     data_generator: |
 
-      /* Get the selected date from the input_datetime helper */
-      const selected = hass.states['[[date]]']?.state?.slice(0, 10);
-      
-      /* Keep the 24 categories even if the date helper is unavailable */
-      if (!selected || !/^\d{4}-\d{2}-\d{2}$/.test(selected)) {
-        return Array.from({ length: 24 }, (_, hour) => ({
-          x: `${String(hour).padStart(2, '0')}:00`,
-          y: null
-        }));
-      }
-      
-      /* Build local midnight -> next local midnight for the selected day */
-      const [year, month, day] = selected.split('-').map(Number);
-      const periodStart = new Date(year, month - 1, day);
-      const periodEnd = new Date(year, month - 1, day + 1);
+      /* Get the selected inclusive date range from the input_datetime helpers */
+      const selectedStart = hass.states['[[date_start]]']?.state?.slice(0, 10);
+      const selectedEnd = hass.states['[[date_end]]']?.state?.slice(0, 10);
+      const validDate = /^\d{4}-\d{2}-\d{2}$/;
 
-      /* Get the statistics for the entity of the series */
+      if (!selectedStart || !selectedEnd ||
+          !validDate.test(selectedStart) || !validDate.test(selectedEnd)) {
+        return [];
+      }
+
+      /* Build local midnight boundaries; recorder end_time is exclusive */
+      const [startYear, startMonth, startDay] = selectedStart.split('-').map(Number);
+      const [endYear, endMonth, endDay] = selectedEnd.split('-').map(Number);
+      const periodStart = new Date(startYear, startMonth - 1, startDay);
+      const selectedPeriodEnd = new Date(endYear, endMonth - 1, endDay);
+
+      if (selectedPeriodEnd < periodStart) {
+        return [];
+      }
+
+      const periodEnd = new Date(endYear, endMonth - 1, endDay + 1);
+
+      /* Build one category for every selected calendar day */
+      const dateKey = date =>
+        `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+      const days = [];
+      for (
+        let date = new Date(periodStart);
+        date <= selectedPeriodEnd;
+        date = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
+      ) {
+        days.push(new Date(date));
+      }
+
+      /* Get daily statistics for the entity of the series */
       const id = entity.entity_id;
       const stats = await hass.callWS({
         type: 'recorder/statistics_during_period',
         start_time: periodStart.toISOString(),
         end_time: periodEnd.toISOString(),
         statistic_ids: [id],
-        period: 'hour',
+        period: 'day',
         types: ['change']
       });
 
-      /* Map them to {hour, value} tuples */
+      /* Map them to {date, value} tuples */
       const values = new Map(
         (stats[id] || []).map(x => [
-          new Date(x.start).getHours(),
+          dateKey(new Date(x.start)),
           x.change
         ])
       );
@@ -183,12 +205,13 @@ card:
       const factor =
         id === '[[battery_charged]]' || id === '[[grid_export]]' ? -1 : 1;
 
-      /* Iterate all hours of the day from 0 to 23 and return one value for each hour */
+      /* Return one value for every selected calendar day */
       /* no value or zero are represented as null */
-      return Array.from({ length: 24 }, (_, hour) => {
-        const value = values.get(hour);
+      return days.map(date => {
+        const key = dateKey(date);
+        const value = values.get(key);
         return {
-          x: `${String(hour).padStart(2, '0')}:00`,
+          x: key,
           y: value == null || value === 0 ? null : value * factor
         };
       });
@@ -205,23 +228,42 @@ card:
       color: var(--energy-solar-color)
 
       data_generator: |
-        /* Get the selected date from the input_datetime helper */
-        const selected = hass.states['[[date]]']?.state?.slice(0, 10);
+        /* Get the selected inclusive date range from the input_datetime helpers */
+        const selectedStart = hass.states['[[date_start]]']?.state?.slice(0, 10);
+        const selectedEnd = hass.states['[[date_end]]']?.state?.slice(0, 10);
+        const validDate = /^\d{4}-\d{2}-\d{2}$/;
 
-        /* Keep the 24 categories even if the date helper is unavailable */
-        if (!selected || !/^\d{4}-\d{2}-\d{2}$/.test(selected)) {
-          return Array.from({ length: 24 }, (_, hour) => ({
-            x: `${String(hour).padStart(2, '0')}:00`,
-            y: null
-          }));
+        if (!selectedStart || !selectedEnd ||
+            !validDate.test(selectedStart) || !validDate.test(selectedEnd)) {
+          return [];
         }
 
-        /* Build local midnight -> next local midnight for the selected day */
-        const [year, month, day] = selected.split('-').map(Number);
-        const periodStart = new Date(year, month - 1, day);
-        const periodEnd = new Date(year, month - 1, day + 1);
+        /* Build local midnight boundaries; recorder end_time is exclusive */
+        const [startYear, startMonth, startDay] = selectedStart.split('-').map(Number);
+        const [endYear, endMonth, endDay] = selectedEnd.split('-').map(Number);
+        const periodStart = new Date(startYear, startMonth - 1, startDay);
+        const selectedPeriodEnd = new Date(endYear, endMonth - 1, endDay);
 
-        /* Get the statistics for the entities required to calculate the series */
+        if (selectedPeriodEnd < periodStart) {
+          return [];
+        }
+
+        const periodEnd = new Date(endYear, endMonth - 1, endDay + 1);
+
+        /* Build one category for every selected calendar day */
+        const dateKey = date =>
+          `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+        const days = [];
+        for (
+          let date = new Date(periodStart);
+          date <= selectedPeriodEnd;
+          date = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
+        ) {
+          days.push(new Date(date));
+        }
+
+        /* Get daily statistics for the entities required to calculate the series */
         const ids = [
           '[[solar]]',
           '[[grid_export]]',
@@ -233,15 +275,15 @@ card:
           start_time: periodStart.toISOString(),
           end_time: periodEnd.toISOString(),
           statistic_ids: ids,
-          period: 'hour',
+          period: 'day',
           types: ['change']
         });
 
-        /* Map them to {hour, value} tuples */
+        /* Map them to {date, value} tuples */
         const toMap = (id) =>
           new Map(
             (stats[id] || []).map(x => [
-              new Date(x.start).getHours(),
+              dateKey(new Date(x.start)),
               x.change
             ])
           );
@@ -250,27 +292,26 @@ card:
         const exported = toMap('[[grid_export]]');
         const charged = toMap('[[battery_charged]]');
 
-        /* Iterate all hours of the day from 0 to 23 and return one value for each hour */
+        /* Return one value for every selected calendar day */
         /* no value or zero are represented as null */
-        return Array.from({ length: 24 }, (_, hour) => {
-
-          const label = `${String(hour).padStart(2, '0')}:00`;
+        return days.map(date => {
+          const key = dateKey(date);
 
           /* get the raw solar production */
-          const produced = solar.get(hour);
-          if (produced == null) { return { x: label, y: null }; }
+          const produced = solar.get(key);
+          if (produced == null) { return { x: key, y: null }; }
 
           /* deduct what was exported or put into the battery */
           const used = Math.max(
             0,
             produced
-              - (exported.get(hour) ?? 0)
-              - (charged.get(hour) ?? 0)
+              - (exported.get(key) ?? 0)
+              - (charged.get(key) ?? 0)
           );
 
           /* Return the tuple */
           return {
-            x: label,
+            x: key,
             y: used === 0 ? null : used
           };
         });
@@ -307,7 +348,7 @@ card:
       color: var(--energy-grid-consumption-color)
       show:
         in_legend: true
-      data_generator: "return [{ x: '00:00', y: null }];"
+      data_generator: "const s = hass.states['[[date_start]]']?.state?.slice(0, 10); return s ? [{ x: s, y: null }] : [];"
 
     - entity: '[[battery_discharged]]'
       name: Battery used
@@ -315,7 +356,7 @@ card:
       color: var(--energy-battery-out-color)
       show:
         in_legend: true
-      data_generator: "return [{ x: '00:00', y: null }];"
+      data_generator: "const s = hass.states['[[date_start]]']?.state?.slice(0, 10); return s ? [{ x: s, y: null }] : [];"
 
     - entity: '[[solar]]'
       name: Solar used
@@ -323,7 +364,7 @@ card:
       color: var(--energy-solar-color)
       show:
         in_legend: true
-      data_generator: "return [{ x: '00:00', y: null }];"
+      data_generator: "const s = hass.states['[[date_start]]']?.state?.slice(0, 10); return s ? [{ x: s, y: null }] : [];"
 
     - entity: '[[battery_charged]]'
       name: Battery charged
@@ -331,7 +372,7 @@ card:
       color: var(--energy-battery-in-color)
       show:
         in_legend: true
-      data_generator: "return [{ x: '00:00', y: null }];"
+      data_generator: "const s = hass.states['[[date_start]]']?.state?.slice(0, 10); return s ? [{ x: s, y: null }] : [];"
 
     - entity: '[[grid_export]]'
       name: Export
@@ -339,5 +380,4 @@ card:
       color: var(--energy-grid-return-color)
       show:
         in_legend: true
-      data_generator: "return [{ x: '00:00', y: null }];"
-
+      data_generator: "const s = hass.states['[[date_start]]']?.state?.slice(0, 10); return s ? [{ x: s, y: null }] : [];"

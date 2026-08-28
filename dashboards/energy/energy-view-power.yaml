@@ -222,9 +222,32 @@ sections:
         template: energy_usage_graph_day
         grid_options:
           columns: full
-          rows: 1
         variables:
           - date: input_datetime.energy_chart_day
+          - solar: sensor.solar_energy_total_victron
+          - grid_import: sensor.grid_energy_import
+          - grid_export: sensor.grid_energy_export
+          - battery_charged: sensor.battery_energy_charged
+          - battery_discharged: sensor.battery_energy_discharged
+
+  # the ranged history graph
+
+      - type: heading
+        icon: mdi:calendar
+        heading: Date Range
+        heading_style: subtitle
+
+      - type: custom:energy-date-range-selector-card
+        start_entity: input_datetime.energy_chart_range_start
+        end_entity: input_datetime.energy_chart_range_end
+
+      - type: custom:decluttering-card
+        template: energy_usage_graph_date_range
+        grid_options:
+          columns: full
+        variables:
+          - date_start: input_datetime.energy_chart_range_start
+          - date_end: input_datetime.energy_chart_range_end
           - solar: sensor.solar_energy_total_victron
           - grid_import: sensor.grid_energy_import
           - grid_export: sensor.grid_energy_export

@@ -2,7 +2,8 @@
 apexcharts_card_templates: !include ../apexcharts-card-templates.yaml
 
 decluttering_templates:
-  !include ../components/energy-usage-graph-day.yaml
+  energy_usage_graph_day: !include ../components/energy-usage-graph-day.yaml
+  energy_usage_graph_date_range: !include ../components/energy-usage-graph-date-range.yaml
 
 views:
   - !include energy-view-power.yaml
