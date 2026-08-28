@@ -107,19 +107,27 @@ energy_usage_graph_day:
             return html + '</table></div>';
           }
 
-    # ------------------------------------------------------------
-    # Tweak to the vertical grid
-    # in a column chart, a vertical line is produced for every column
-    # this hides the ones we do not want
-    # ------------------------------------------------------------
     card_mod:
       style: |
+        /* ------------------------------------------------------------
+        ** Tweak to the vertical grid
+        ** in a column chart, a vertical line is produced for every column
+        ** this hides the ones we do not want
+        ** -----------------------------------------------------------*/
         .apexcharts-gridlines-vertical line {
           display: none;
         }
 
         .apexcharts-gridlines-vertical line:nth-child(3n+1) {
           display: block;
+        }
+
+        /* ------------------------------------------------------------
+        ** Hide empty legend entries because apexchart still generates 
+        ** the containing divs (which take up space even if they are empty)
+        ** -----------------------------------------------------------*/
+        .apexcharts-legend-series:has(.apexcharts-legend-text:empty) {
+          display: none !important;
         }
 
     # ------------------------------------------------------------
@@ -132,6 +140,7 @@ energy_usage_graph_day:
       float_precision: 2
       opacity: 0.5
       show:
+        in_legend: false
         legend_value: false
 
       # Shared data generator for all series EXCEPT solar which has its own
@@ -290,3 +299,47 @@ energy_usage_graph_day:
         name: Export
         stack_group: energy
         color: var(--energy-grid-return-color)
+
+      # ------------------------------------------------------------
+      # Dummy series for display in legend
+      # ------------------------------------------------------------
+      - entity: '[[grid_import]]'
+        name: Import
+        stack_group: energy
+        color: var(--energy-grid-consumption-color)
+        show:
+          in_legend: true
+        data_generator: "return [{ x: '00:00', y: null }];"
+
+      - entity: '[[battery_discharged]]'
+        name: Battery used
+        stack_group: energy
+        color: var(--energy-battery-out-color)
+        show:
+          in_legend: true
+        data_generator: "return [{ x: '00:00', y: null }];"
+
+      - entity: '[[solar]]'
+        name: Solar used
+        stack_group: energy
+        color: var(--energy-solar-color)
+        show:
+          in_legend: true
+        data_generator: "return [{ x: '00:00', y: null }];"
+
+      - entity: '[[battery_charged]]'
+        name: Battery charged
+        stack_group: energy
+        color: var(--energy-battery-in-color)
+        show:
+          in_legend: true
+        data_generator: "return [{ x: '00:00', y: null }];"
+
+      - entity: '[[grid_export]]'
+        name: Export
+        stack_group: energy
+        color: var(--energy-grid-return-color)
+        show:
+          in_legend: true
+        data_generator: "return [{ x: '00:00', y: null }];"
+
