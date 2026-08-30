@@ -91,8 +91,8 @@ automation:
   - alias: "Victron MQTT Keep-Alive"
     id: victron_mqtt_keep_alive
     description: "Pings the Victron GX local broker via the Mosquitto bridge to maintain the real-time data stream."
-    trigger:
-      - platform: time_pattern
+    triggers:
+      - trigger: time_pattern
         seconds: "/30"
     condition: []
     action:
@@ -212,6 +212,7 @@ template:
           and is_number(states('sensor.victron_real_time_solar_power'))
           and is_number(states('sensor.victron_real_time_power_consumption'))
           and is_number(states('sensor.victron_real_time_battery_power_calculated'))
+          and is_number(states('sensor.real_time_power_aircon'))
         }}
       state: >
         {{
@@ -220,6 +221,27 @@ template:
             + (states('sensor.victron_real_time_solar_power') | float)
             - (states('sensor.victron_real_time_power_consumption') | float)
             - (states('sensor.victron_real_time_battery_power_calculated') | float)
+            - (states('sensor.real_time_power_aircon') | float)
+          )
+        }}
+
+      # 7a. Power used by airconditioning units
+    - name: "Real-Time A/C Power"
+      unique_id: real_time_power_aircon
+      default_entity_id: sensor.real_time_power_aircon
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      availability: >
+        {{
+          is_number(states('sensor.ac_bedroom_power'))
+          and is_number(states('sensor.ac_cinema_power'))
+        }}
+      state: >
+        {{
+          (
+            (states('sensor.ac_bedroom_power') | float)
+            + (states('sensor.ac_cinema_power') | float)
           )
         }}
 

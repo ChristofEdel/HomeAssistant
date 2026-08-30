@@ -1,0 +1,177 @@
+#
+# Power and energy sensors are usually attached to devices and named accordingly.
+#
+# To make it possible to keep the same entities even if equipment changes, this
+# file defines neutrally named entities that simply pull in data from the device
+# specific ones.
+#
+# THESE SENSORS ARE NOT REAL-TIME, but are intended for a continuous
+# history across eqipment changes
+#
+#-----------------------------------------------------------------------------
+#
+# Power sensors
+#
+#   - generic_grid_power, generic_grid_power_import, generic_grid_power_export
+#   - generic_battery_power, generic_battery_power_charging, generic_battery_power_discharging
+#   - generic_solar_power
+#
+#-----------------------------------------------------------------------------
+
+template:
+  - sensor:
+    - name: "Grid Power"
+      unique_id: generic_grid_power
+      default_entity_id: sensor.generic_grid_power
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      state: >
+        {{ states('sensor.victron_gx_grid_power_l1') | float(0) }}
+      availability: >
+        {{ has_value('sensor.victron_gx_grid_power_l1') }}
+
+    - name: "Grid Power - Import"
+      unique_id: generic_grid_power_import
+      default_entity_id: sensor.generic_grid_power_import
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      state: >
+        {{ max(0, states('sensor.victron_gx_grid_power_l1') | float(0)) }}
+      availability: >
+        {{ has_value('sensor.victron_gx_grid_power_l1') }}
+
+    - name: "Grid Power - Export"
+      unique_id: generic_grid_power_export
+      default_entity_id: sensor.generic_grid_power_export
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      state: >
+        {{ max(0, - (states('sensor.victron_gx_grid_power_l1') | float(0))) }}
+      availability: >
+        {{ has_value('sensor.victron_gx_grid_power_l1') }}
+
+    - name: "Battery Power"
+      unique_id: generic_battery_power
+      default_entity_id: sensor.generic_battery_power
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      state: >
+        {{ states('sensor.victron_gx_dc_battery_power') | float(0) }}
+      availability: >
+        {{ has_value('sensor.victron_gx_dc_battery_power') }}
+
+    - name: "Battery Power - Charging"
+      unique_id: generic_battery_power_charging
+      default_entity_id: sensor.generic_battery_power_charging
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      state: >
+        {{ max(0, states('sensor.victron_gx_dc_battery_power') | float(0)) }}
+      availability: >
+        {{ has_value('sensor.victron_gx_dc_battery_power') }}
+
+    - name: "Battery Power - Discharging"
+      unique_id: generic_battery_power_discharging
+      default_entity_id: sensor.generic_battery_power_discharging
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      state: >
+        {{ max(0, -(states('sensor.victron_gx_dc_battery_power') | float(0))) }}
+      availability: >
+        {{ has_value('sensor.victron_gx_dc_battery_power') }}
+
+    - name: "Solar Power"
+      unique_id: generic_solar_power
+      default_entity_id: sensor.generic_solar_power
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      state: >
+        {{ states('sensor.victron_gx_pv_on_output_power_l1') | float(0) }}
+      availability: >
+        {{ has_value('sensor.victron_gx_pv_on_output_power_l1') }}
+
+
+sensor:
+  - platform: integration
+    source: sensor.generic_grid_power
+    name: "Grid Energy"
+    unique_id: generic_grid_energy
+    method: left
+    unit_prefix: k
+    unit_time: h
+    round: 3
+    max_sub_interval:
+      minutes: 1
+
+  - platform: integration
+    source: sensor.generic_grid_power_import
+    name: "Grid Energy - Import"
+    unique_id: generic_grid_energy_import
+    method: left
+    unit_prefix: k
+    unit_time: h
+    round: 3
+    max_sub_interval:
+      minutes: 1
+
+  - platform: integration
+    source: sensor.generic_grid_power_export
+    name: "Grid Energy - Export"
+    unique_id: generic_grid_energy_export
+    method: left
+    unit_prefix: k
+    unit_time: h
+    round: 3
+    max_sub_interval:
+      minutes: 1
+
+  - platform: integration
+    source: sensor.generic_battery_power
+    name: "Battery Energy"
+    unique_id: generic_battery_energy
+    method: left
+    unit_prefix: k
+    unit_time: h
+    round: 3
+    max_sub_interval:
+      minutes: 1
+
+  - platform: integration
+    source: sensor.generic_battery_power_charging
+    name: "Battery Energy - Charged"
+    unique_id: generic_battery_energy_charged
+    method: left
+    unit_prefix: k
+    unit_time: h
+    round: 3
+    max_sub_interval:
+      minutes: 1
+
+  - platform: integration
+    source: sensor.generic_battery_power_discharging
+    name: "Battery Energy - Discharged"
+    unique_id: generic_battery_energy_discharged
+    method: left
+    unit_prefix: k
+    unit_time: h
+    round: 3
+    max_sub_interval:
+      minutes: 1
+
+  - platform: integration
+    source: sensor.generic_solar_power
+    name: "Solar Energy"
+    unique_id: generic_solar_energy
+    unit_prefix: k
+    unit_time: h
+    method: trapezoidal
+    round: 3
+    max_sub_interval:
+      minutes: 1
