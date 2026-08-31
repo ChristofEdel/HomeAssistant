@@ -43,3 +43,37 @@ import:
             - label: Replace
               value: replace
           mode: dropdown
+
+recalculate:
+  name: Recalculate Sensor Statistics
+  description: Delete all existing short and long term statistics and recalculate them from the complete Recorder state history. Only measurement sensors are supported.
+  fields:
+    entity:
+      name: Sensor
+      description: Measurement sensor whose statistics are to be recalculated.
+      required: true
+      selector:
+        entity:
+          filter:
+            - domain: sensor
+
+copy:
+  name: Copy Sensor Records
+  description: Delete all Recorder history and statistics for the target sensor and replace them with copies of the source sensor records.
+  fields:
+    sensor_from:
+      name: Sensor From
+      description: Source sensor. Supports measurement, total and total_increasing state classes.
+      required: true
+      selector:
+        entity:
+          filter:
+            - domain: sensor
+    sensor_to:
+      name: Sensor To
+      description: Target sensor. Supports measurement, total and total_increasing state classes.
+      required: true
+      selector:
+        entity:
+          filter:
+            - domain: sensor

@@ -13,9 +13,12 @@ from homeassistant.helpers.typing import ConfigType
 from .csv_reader import TIME_ZONE_LOCAL, TIME_ZONE_UTC
 from .import_task import async_import_history
 from .importer import ImportMode
+from .maintenance_task import async_copy_sensor_records, async_recalculate_statistics
 
 DOMAIN: Final = "history_import"
 SERVICE_IMPORT: Final = "import"
+SERVICE_RECALCULATE: Final = "recalculate"
+SERVICE_COPY: Final = "copy"
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
@@ -32,6 +35,19 @@ SERVICE_SCHEMA = vol.Schema(
     }
 )
 
+RECALCULATE_SERVICE_SCHEMA = vol.Schema(
+    {
+        vol.Required("entity"): cv.entity_id,
+    }
+)
+
+COPY_SERVICE_SCHEMA = vol.Schema(
+    {
+        vol.Required("sensor_from"): cv.entity_id,
+        vol.Required("sensor_to"): cv.entity_id,
+    }
+)
+
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up history_import from services.yaml."""
@@ -45,11 +61,40 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             time_zone=call.data["time_zone"],
         )
 
+    async def handle_recalculate(call: ServiceCall) -> dict[str, Any]:
+        return await async_recalculate_statistics(
+            hass,
+            entity_id=call.data["entity"],
+        )
+
+    async def handle_copy(call: ServiceCall) -> dict[str, Any]:
+        return await async_copy_sensor_records(
+            hass,
+            source_entity_id=call.data["sensor_from"],
+            target_entity_id=call.data["sensor_to"],
+        )
+
     hass.services.async_register(
         DOMAIN,
         SERVICE_IMPORT,
         handle_import,
         schema=SERVICE_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_RECALCULATE,
+        handle_recalculate,
+        schema=RECALCULATE_SERVICE_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_COPY,
+        handle_copy,
+        schema=COPY_SERVICE_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
 
