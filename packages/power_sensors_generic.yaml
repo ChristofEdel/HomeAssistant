@@ -16,6 +16,10 @@
 #   - generic_battery_power, generic_battery_power_charging, generic_battery_power_discharging
 #   - generic_solar_power
 #
+#   - ditto for _energy
+#
+#   - generic_battery_charge
+#
 #-----------------------------------------------------------------------------
 
 template:
@@ -97,12 +101,29 @@ template:
       availability: >
         {{ has_value('sensor.victron_gx_pv_on_output_power_l1') }}
 
+    - name: "Battery Charge"
+      unique_id: generic_battery_charge
+      default_entity_id: sensor.generic_battery_charge
+      unit_of_measurement: '%'
+      device_class: battery
+      state_class: measurement
+      state: >
+        {{ states('sensor.victron_gx_dc_battery_charge') | float(0) }}
+      availability: >
+        {{ has_value('sensor.victron_gx_dc_battery_charge') }}
 
+#
+# NB - because the below sensors do not have the ability to set the entity ID
+# we have to use the name. Using the same value as the unique id makes this highly
+# visible in the UI so we can change it there.
+#
+# Let's hope at some point they get around implementing default_entity_id: for these...
+#
 sensor:
   - platform: integration
-    source: sensor.generic_grid_power
-    name: "Grid Energy"
+    name: generic_grid_energy  # "Grid Energy"
     unique_id: generic_grid_energy
+    source: sensor.generic_grid_power
     method: left
     unit_prefix: k
     unit_time: h
@@ -111,9 +132,9 @@ sensor:
       minutes: 1
 
   - platform: integration
-    source: sensor.generic_grid_power_import
-    name: "Grid Energy - Import"
+    name: generic_grid_energy_import # "Grid Energy - Import"
     unique_id: generic_grid_energy_import
+    source: sensor.generic_grid_power_import
     method: left
     unit_prefix: k
     unit_time: h
@@ -122,9 +143,9 @@ sensor:
       minutes: 1
 
   - platform: integration
-    source: sensor.generic_grid_power_export
-    name: "Grid Energy - Export"
+    name: generic_grid_energy_export  # "Grid Energy - Export"
     unique_id: generic_grid_energy_export
+    source: sensor.generic_grid_power_export
     method: left
     unit_prefix: k
     unit_time: h
@@ -133,9 +154,9 @@ sensor:
       minutes: 1
 
   - platform: integration
-    source: sensor.generic_battery_power
-    name: "Battery Energy"
+    name: generic_battery_energy # "Battery Energy"
     unique_id: generic_battery_energy
+    source: sensor.generic_battery_power
     method: left
     unit_prefix: k
     unit_time: h
@@ -144,9 +165,9 @@ sensor:
       minutes: 1
 
   - platform: integration
-    source: sensor.generic_battery_power_charging
-    name: "Battery Energy - Charged"
+    name: generic_battery_energy_charged # "Battery Energy - Charged"
     unique_id: generic_battery_energy_charged
+    source: sensor.generic_battery_power_charging
     method: left
     unit_prefix: k
     unit_time: h
@@ -155,9 +176,9 @@ sensor:
       minutes: 1
 
   - platform: integration
-    source: sensor.generic_battery_power_discharging
-    name: "Battery Energy - Discharged"
+    name: generic_battery_energy_discharged # "Battery Energy - Discharged"
     unique_id: generic_battery_energy_discharged
+    source: sensor.generic_battery_power_discharging
     method: left
     unit_prefix: k
     unit_time: h
@@ -166,9 +187,9 @@ sensor:
       minutes: 1
 
   - platform: integration
-    source: sensor.generic_solar_power
-    name: "Solar Energy"
+    name: generic_solar_energy # "Solar Energy"
     unique_id: generic_solar_energy
+    source: sensor.generic_solar_power
     unit_prefix: k
     unit_time: h
     method: trapezoidal
