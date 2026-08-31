@@ -1,0 +1,45 @@
+import:
+  name: Sensor history data import
+  description: Import historical sensor states from CSV for a particular sensor into both detailed sensor state history.
+  fields:
+    entity:
+      name: Entity
+      description: Sensor whose history is to be imported.
+      required: true
+      selector:
+        entity:
+          filter:
+            - domain: sensor
+    time_zone:
+      name: Time zone
+      description: Time zone used for timestamps that do not have an explicit time zone specified in the CSV file
+      required: true
+      default: UTC
+      selector:
+        select:
+          options:
+            - label: UTC
+              value: UTC
+            - label: Local
+              value: local
+          mode: dropdown
+    file:
+      name: File
+      description: CSV file. First column is timestamp, second column is value. Path relative to /config
+      required: true
+      selector:
+        text:
+    import_mode:
+      name: Existing States
+      description: How existing Recorder states are treated.
+      required: true
+      selector:
+        select:
+          options:
+            - label: Append To
+              value: append
+            - label: Overwrite
+              value: overwrite
+            - label: Replace
+              value: replace
+          mode: dropdown

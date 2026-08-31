@@ -5,6 +5,9 @@ homeassistant:
 # Loads default set of integrations. Do not remove.
 default_config:
 
+# Add the history_import custom integration
+history_import:
+
 # Condigure push notification to  every push-capable Home Assistant Companion App
 notify:
   - platform: mobile_app
@@ -44,3 +47,9 @@ lovelace:
 automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
+
+# Dummy SQL sensor to ensure the SQL integration is loaded
+sql:
+  - name: SQL Initializer
+    query: "SELECT 1 AS value"
+    column: "value"

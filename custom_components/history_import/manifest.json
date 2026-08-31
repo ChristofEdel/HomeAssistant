@@ -1,0 +1,8 @@
+{
+  "domain": "history_import",
+  "name": "History Import",
+  "version": "1.0.1",
+  "dependencies": [
+    "recorder"
+  ]
+}
