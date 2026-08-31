@@ -1,0 +1,195 @@
+input_text:
+  recorder_history_filter:
+    name: Search
+
+script:
+  get_entity_history:
+    alias: Entity History
+    fields:
+      entity_id:
+        name: Entity
+        required: true
+        selector:
+          entity:
+            domain: sensor
+      history_type:
+        name: History Type
+        required: true
+        selector:
+          select:
+            options:
+              - recorder
+              - short_term
+              - long_term
+    sequence:
+      - variables:
+          query: >-
+            {% if history_type == 'short_term' %}
+              SELECT
+                statistics_short_term.start_ts,
+                statistics_short_term.mean,
+                statistics_short_term.min,
+                statistics_short_term.max,
+                statistics_short_term.state,
+                statistics_short_term.sum,
+                statistics_short_term.last_reset_ts,
+                statistics_meta.unit_of_measurement
+              FROM statistics_short_term
+              INNER JOIN statistics_meta
+                ON statistics_short_term.metadata_id = statistics_meta.id
+              WHERE statistics_meta.statistic_id = '{{ entity_id }}'
+              ORDER BY statistics_short_term.start_ts DESC
+              LIMIT 100
+            {% elif history_type == 'long_term' %}
+              SELECT
+                statistics.start_ts,
+                statistics.mean,
+                statistics.min,
+                statistics.max,
+                statistics.state,
+                statistics.sum,
+                statistics.last_reset_ts,
+                statistics_meta.unit_of_measurement
+              FROM statistics
+              INNER JOIN statistics_meta
+                ON statistics.metadata_id = statistics_meta.id
+              WHERE statistics_meta.statistic_id = '{{ entity_id }}'
+              ORDER BY statistics.start_ts DESC
+            {% else %}
+              SELECT
+                states.state,
+                states.last_updated_ts
+              FROM states
+              INNER JOIN states_meta
+                ON states.metadata_id = states_meta.metadata_id
+              WHERE states_meta.entity_id = '{{ entity_id }}'
+              ORDER BY states.last_updated_ts DESC
+            {% endif %}
+
+      - action: sql.query
+        data:
+          query: "{{ query }}"
+        response_variable: result
+
+      - stop: ""
+        response_variable: result
+
+  get_entity_recorder_history:
+    alias: Entity History - Recorder
+    fields:
+      entity_id:
+        name: Entity
+        required: true
+        selector:
+          entity:
+            domain: sensor
+    sequence:
+      - action: script.get_entity_history
+        data:
+          entity_id: "{{ entity_id }}"
+          history_type: recorder
+        response_variable: result
+
+      - stop: ""
+        response_variable: result
+
+  get_entity_short_term_statistics:
+    alias: Entity History - Short-Term Statistics
+    fields:
+      entity_id:
+        name: Entity
+        required: true
+        selector:
+          entity:
+            domain: sensor
+    sequence:
+      - action: script.get_entity_history
+        data:
+          entity_id: "{{ entity_id }}"
+          history_type: short_term
+        response_variable: result
+
+      - stop: ""
+        response_variable: result
+
+  get_entity_long_term_statistics:
+    alias: Entity History - Long-Term Statistics
+    fields:
+      entity_id:
+        name: Entity
+        required: true
+        selector:
+          entity:
+            domain: sensor
+    sequence:
+      - action: script.get_entity_history
+        data:
+          entity_id: "{{ entity_id }}"
+          history_type: long_term
+        response_variable: result
+
+      - stop: ""
+        response_variable: result
+
+template:
+  # Build the list from Recorder states and statistics metadata.
+  - sensor:
+      - name: Recorder History Entity List
+        default_entity_id: sensor.recorder_history_entity_list
+        unique_id: recorder_history_entity_list
+        state: "{{ recorder_entities.result | count }}"
+        attributes:
+          entities: >-
+            {{ recorder_entities.result
+               | map(attribute='entity_id')
+               | list }}
+
+    triggers:
+      - trigger: homeassistant
+        event: start
+
+      - trigger: event
+        event_type: event_template_reloaded
+
+    actions:
+      - action: sql.query
+        data:
+          query: >-
+            SELECT entity_id
+            FROM (
+              SELECT entity_id
+              FROM states_meta
+              WHERE entity_id LIKE 'sensor.%'
+              UNION
+              SELECT statistic_id AS entity_id
+              FROM statistics_meta
+              WHERE statistic_id LIKE 'sensor.%'
+            ) AS sensor_entities
+            ORDER BY entity_id
+        response_variable: recorder_entities
+
+  # Dashboard selector, filtered by the search helper.
+  - select:
+      - name: Recorder History Entity
+        default_entity_id: select.recorder_history_entity
+        unique_id: recorder_history_entity
+        optimistic: true
+        options: >-
+          {% set entities =
+            state_attr('sensor.recorder_history_entity_list', 'entities') or []
+          %}
+          {% set filter = states('input_text.recorder_history_filter') | lower %}
+          {{ entities
+            | select('search', filter, ignorecase=true)
+            | list
+          }}
+
+recorder:
+  exclude:
+    entities:
+      - sensor.recorder_history_entity_list
+      - select.recorder_history_entity
+      - input_text.recorder_history_filter
+      - input_button.history_dashboard_get_recorder_history
+      - input_button.history_dashboard_get_short_term_statistics
+      - input_button.history_dashboard_get_long_term_statistics

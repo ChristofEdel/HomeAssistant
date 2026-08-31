@@ -1,0 +1,6 @@
+# dashboard/test-dashboard.yaml
+apexcharts_card_templates: !include ../apexcharts-card-templates.yaml
+
+views:
+  - !include test-view-history.yaml
+  

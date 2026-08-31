@@ -1,0 +1,43 @@
+title: History
+path: history
+icon: mdi:database-clock-outline
+type: sections
+theme: standard-dashboard
+max_columns: 3
+badges:
+  - type: shortcut
+    icon: mdi:reload
+    text: Reload YAML
+    tap_action:
+      action: perform-action
+      perform_action: homeassistant.reload_all
+
+sections:
+  - type: grid
+    column_span: 3
+    cards:
+      - type: heading
+        heading: Recorder History
+        icon: mdi:database-clock
+        grid_options:
+          columns: full
+
+      - type: vertical-stack
+        grid_options:
+          columns: 9
+        cards:
+          - type: entities
+            entities:
+              - entity: input_text.recorder_history_filter
+                name: Search
+
+              - entity: select.recorder_history_entity
+                name: Entity
+
+          - type: custom:recorder-history-query-buttons-card
+            entity: select.recorder_history_entity
+            script: script.get_entity_history
+
+      - type: custom:recorder-history-query-result-card
+        grid_options:
+          columns: 27

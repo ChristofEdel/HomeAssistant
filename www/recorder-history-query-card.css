@@ -1,0 +1,146 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+ha-card.query-buttons-card {
+  padding: 12px;
+}
+
+.buttons {
+  display: grid;
+  gap: 8px;
+}
+
+.buttons button {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--divider-color);
+  border-radius: var(--ha-card-border-radius, 12px);
+  background: var(--card-background-color);
+  color: var(--primary-text-color);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.buttons ha-icon {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.buttons button:hover:not(:disabled) {
+  background: var(--secondary-background-color);
+}
+
+.buttons button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+ha-card.query-result-card {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 60px 10px 16px;
+}
+
+.header {
+  min-width: 0;
+  flex: 1 1 auto;
+  font-weight: 600;
+  color: var(--primary-text-color);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.copy-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--primary-text-color);
+  cursor: pointer;
+}
+
+.copy-button ha-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.copy-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.status {
+  padding: 0 16px 16px 16px;
+  color: var(--secondary-text-color);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.status[hidden] {
+  display: none;
+}
+
+.error {
+  color: var(--error-color);
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+th,
+td {
+  padding: 2px 12px;
+  border-bottom: 1px solid var(--divider-color);
+  text-align: left;
+  white-space: nowrap;
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--card-background-color);
+  font-weight: 600;
+}
