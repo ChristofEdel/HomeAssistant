@@ -224,12 +224,12 @@ sections:
           columns: full
         variables:
           - date: input_datetime.energy_chart_day
-          - solar: sensor.solar_energy_total_victron
-          - grid_import: sensor.grid_energy_import
-          - grid_export: sensor.grid_energy_export
-          - battery_charged: sensor.battery_energy_charged
-          - battery_discharged: sensor.battery_energy_discharged
-          - battery_percent: sensor.victron_gx_dc_battery_charge
+          - solar: sensor.generic_solar_energy
+          - grid_import: sensor.generic_grid_energy_import
+          - grid_export: sensor.generic_grid_energy_export
+          - battery_charged: sensor.generic_battery_energy_charged
+          - battery_discharged: sensor.generic_battery_energy_discharged
+          - battery_percent: sensor.generic_battery_charge
 
   # the ranged history graph
 
@@ -249,9 +249,9 @@ sections:
         variables:
           - date_start: input_datetime.energy_chart_range_start
           - date_end: input_datetime.energy_chart_range_end
-          - solar: sensor.solar_energy_total_victron
-          - grid_import: sensor.grid_energy_import
-          - grid_export: sensor.grid_energy_export
-          - battery_charged: sensor.battery_energy_charged
-          - battery_discharged: sensor.battery_energy_discharged
-          - battery_percent: sensor.victron_gx_dc_battery_charge
+          - solar: sensor.generic_solar_energy
+          - grid_import: sensor.generic_grid_energy_import
+          - grid_export: sensor.generic_grid_energy_export
+          - battery_charged: sensor.generic_battery_energy_charged
+          - battery_discharged: sensor.generic_battery_energy_discharged
+          - battery_percent: sensor.generic_battery_charge
