@@ -444,12 +444,34 @@ class _ReplaySourceState:
     last_reported_ts: float | None
 
 
-def perform_reintegrate(
+@dataclass(slots=True)
+class _ReplayTargetState:
+    state: str
+    last_updated_ts: float
+    last_reported_ts: float
+
+
+@dataclass(slots=True)
+class ReintegrationPlan:
+    """Prepared Integral replay which has not yet modified the target history."""
+
+    target_states: list[_ReplayTargetState]
+    source_entity_id: str
+    method: str
+    round_digits: int | None
+    max_sub_interval: float | None
+    source_states_read: int
+    oldest_source_timestamp: float | None
+    newest_source_timestamp: float | None
+    final_internal_state: str | None
+    final_exposed_state: str
+    final_state_timestamp: float
+    final_trigger: str
+
+
+def prepare_reintegrate(
     recorderInstance,
-    target_entity_id: str,
     source_entity_id: str,
-    target_attributes: dict[str, Any],
-    target_statistics_metadata: dict[str, Any],
     method: str,
     round_digits: int | None,
     unit_prefix: int,
@@ -457,14 +479,13 @@ def perform_reintegrate(
     max_sub_interval: float | None,
     replay_end_timestamp: float,
     chunk_size: int | None = None,
-) -> ReintegrationResult:
-    """Rebuild an Integral sensor from the complete Recorder history of its source."""
+) -> ReintegrationPlan:
+    """Calculate an Integral replay without modifying the target Recorder history."""
 
     _validate_chunk_size(chunk_size)
 
     with session_scope(session=recorderInstance.get_session()) as session:
 
-        # Resolve the source state metadata before deleting anything from the target.
         source_states_metadata_id = session.scalar(
             select(StatesMeta.metadata_id).where(
                 StatesMeta.entity_id == source_entity_id
@@ -475,10 +496,6 @@ def perform_reintegrate(
                 f"No Recorder state metadata is available for {source_entity_id}"
             )
 
-        # Read all source state changes through the replay cut-off before modifying
-        # the target sensor. Recorder retains only the latest last_reported_ts for an
-        # unchanged state, so earlier same-state report timestamps cannot be recovered.
-        # max_sub_interval writes are reconstructed from the retained timing information.
         source_states: list[States | _ReplaySourceState]
         source_states = list(
             session.scalars(
@@ -510,6 +527,51 @@ def perform_reintegrate(
                 for row in source_states
             ]
 
+        replay = _replay_integration_states(
+            replay_source_states,
+            method,
+            round_digits,
+            unit_prefix,
+            unit_time,
+            max_sub_interval,
+            replay_end_timestamp,
+        )
+
+    return ReintegrationPlan(
+        target_states=replay["target_states"],
+        source_entity_id=source_entity_id,
+        method=method,
+        round_digits=round_digits,
+        max_sub_interval=max_sub_interval,
+        source_states_read=len(source_states),
+        oldest_source_timestamp=oldest_source_timestamp,
+        newest_source_timestamp=newest_source_timestamp,
+        final_internal_state=replay["final_internal_state"],
+        final_exposed_state=replay["final_exposed_state"],
+        final_state_timestamp=replay["final_state_timestamp"],
+        final_trigger=replay["final_trigger"],
+    )
+
+
+def perform_reintegrate(
+    recorderInstance,
+    target_entity_id: str,
+    target_attributes: dict[str, Any],
+    target_statistics_metadata: dict[str, Any],
+    round_digits: int | None,
+    replay_end_timestamp: float,
+    plan: ReintegrationPlan,
+    current_internal_state: str | None,
+    current_available: bool,
+    current_state_timestamp: float,
+    chunk_size: int | None = None,
+) -> ReintegrationResult:
+    """Replace Integral history after the running sensor has been corrected."""
+
+    _validate_chunk_size(chunk_size)
+
+    with session_scope(session=recorderInstance.get_session()) as session:
+
         target_states_metadata_id = _get_or_create_states_metadata_id(
             session,
             target_entity_id,
@@ -521,7 +583,6 @@ def perform_reintegrate(
             target_statistics_metadata,
         )
 
-        # Delete all prior target history and statistics before rebuilding them.
         _delete_all_statistics(
             session,
             target_statistics_metadata_id
@@ -535,22 +596,69 @@ def perform_reintegrate(
 
         attributes_id = _get_or_create_attributes_id(session, target_attributes)
 
-        replay = _replay_integration_states(
+        internal_state = (
+            Decimal(current_internal_state)
+            if current_internal_state is not None
+            else None
+        )
+        current_exposed_state = _integration_exposed_state(
+            internal_state,
+            current_available,
+            round_digits,
+        )
+
+        merge_latest = bool(
+            plan.target_states
+            and plan.target_states[-1].state == current_exposed_state
+        )
+        if merge_latest:
+            latest_historical_state = plan.target_states[-1]
+            anchor_last_updated_ts = latest_historical_state.last_updated_ts
+            anchor_last_reported_ts = max(
+                current_state_timestamp,
+                latest_historical_state.last_reported_ts,
+            )
+            historical_states = plan.target_states[:-1]
+        else:
+            anchor_last_updated_ts = current_state_timestamp
+            anchor_last_reported_ts = current_state_timestamp
+            historical_states = plan.target_states
+
+        current_anchor = States(
+            metadata_id      = target_states_metadata_id,
+            state            = current_exposed_state,
+            attributes_id    = attributes_id,
+            origin_idx       = 0,
+            last_updated_ts  = anchor_last_updated_ts,
+            last_changed_ts  = None,
+            last_reported_ts = anchor_last_reported_ts,
+        )
+        session.add(current_anchor)
+        session.flush()
+        if current_anchor.state_id is None:
+            raise ValueError("Current Recorder state has no id")
+        current_anchor_state_id = current_anchor.state_id
+        session.commit()
+
+        try:
+            _refresh_recorder_caches(
+                recorderInstance,
+                target_entity_id,
+                target_statistics_metadata_id,
+            )
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception(
+                "Historical reintegration current state committed, but Recorder cache refresh failed"
+            )
+
+        _insert_reintegration_history(
             session,
             target_states_metadata_id,
             attributes_id,
-            replay_source_states,
-            method,
-            round_digits,
-            unit_prefix,
-            unit_time,
-            max_sub_interval,
-            replay_end_timestamp,
+            historical_states,
+            current_anchor_state_id,
             chunk_size,
         )
-
-        session.flush()
-        _commit_stage(session, chunk_size)
 
         statistics_result = _rebuild_total_statistics(
             session,
@@ -560,11 +668,10 @@ def perform_reintegrate(
             chunk_size,
         )
 
-    # The database changes have committed successfully at this point
     _LOGGER.info(
         "Historical reintegration: transaction committed; %d states rebuilt, "
         "%d short-term statistics rebuilt, %d hourly statistics rebuilt",
-        replay["states_rebuilt"],
+        len(plan.target_states),
         statistics_result["short_term"],
         statistics_result["hourly"],
     )
@@ -581,33 +688,89 @@ def perform_reintegrate(
 
     response = {
         "entity": target_entity_id,
-        "source": source_entity_id,
-        "method": method,
-        "round_digits": round_digits,
-        "max_sub_interval_seconds": max_sub_interval,
-        "source_states_read": len(source_states),
+        "source": plan.source_entity_id,
+        "method": plan.method,
+        "round_digits": plan.round_digits,
+        "max_sub_interval_seconds": plan.max_sub_interval,
+        "source_states_read": plan.source_states_read,
         "states_deleted": target_states_deleted,
-        "states_rebuilt": replay["states_rebuilt"],
+        "states_rebuilt": len(plan.target_states),
         "short_term_statistics_rebuilt": statistics_result["short_term"],
         "long_term_statistics_rebuilt": statistics_result["hourly"],
-        "oldest_source_timestamp": _format_timestamp(oldest_source_timestamp),
-        "newest_source_timestamp": _format_timestamp(newest_source_timestamp),
-        "final_state_timestamp": _format_timestamp(replay["final_state_timestamp"]),
-        "final_state": replay["final_exposed_state"],
+        "oldest_source_timestamp": _format_timestamp(plan.oldest_source_timestamp),
+        "newest_source_timestamp": _format_timestamp(plan.newest_source_timestamp),
+        "final_state_timestamp": _format_timestamp(current_state_timestamp),
+        "final_state": current_exposed_state,
     }
 
     return ReintegrationResult(
         response=response,
-        final_internal_state=replay["final_internal_state"],
-        final_state_timestamp=replay["final_state_timestamp"],
-        final_trigger=replay["final_trigger"],
+        final_internal_state=current_internal_state,
+        final_state_timestamp=current_state_timestamp,
+        final_trigger=plan.final_trigger,
     )
 
 
-def _replay_integration_states(
+def _insert_reintegration_history(
     session: Session,
     target_states_metadata_id: int,
     attributes_id: int | None,
+    target_states: list[_ReplayTargetState],
+    current_anchor_state_id: int,
+    chunk_size: int | None = None,
+) -> None:
+    """Insert prepared historical states and connect the current anchor to them."""
+
+    previous_target_row: States | None = None
+    previous_target_state_id: int | None = None
+    states_inserted = 0
+
+    for target_state in target_states:
+        db_state = States(
+            metadata_id      = target_states_metadata_id,
+            state            = target_state.state,
+            attributes_id    = attributes_id,
+            origin_idx       = 0,
+            last_updated_ts  = target_state.last_updated_ts,
+            last_changed_ts  = None,
+            last_reported_ts = target_state.last_reported_ts,
+        )
+        if previous_target_row is not None:
+            db_state.old_state = previous_target_row
+        elif previous_target_state_id is not None:
+            db_state.old_state_id = previous_target_state_id
+
+        session.add(db_state)
+        previous_target_row = db_state
+        states_inserted += 1
+
+        if chunk_size is not None and states_inserted % chunk_size == 0:
+            session.flush()
+            if db_state.state_id is None:
+                raise ValueError("Rebuilt Recorder state has no id")
+            previous_target_state_id = db_state.state_id
+            session.commit()
+            previous_target_row = None
+            _LOGGER.info(
+                "Historical reintegration: committed state chunk; %d states rebuilt",
+                states_inserted,
+            )
+
+    session.flush()
+    if previous_target_row is not None:
+        if previous_target_row.state_id is None:
+            raise ValueError("Rebuilt Recorder state has no id")
+        previous_target_state_id = previous_target_row.state_id
+
+    session.execute(
+        update(States)
+        .where(States.state_id == current_anchor_state_id)
+        .values(old_state_id=previous_target_state_id)
+    )
+    _commit_stage(session, chunk_size)
+
+
+def _replay_integration_states(
     source_states: list[States | _ReplaySourceState],
     method: str,
     round_digits: int | None,
@@ -615,7 +778,6 @@ def _replay_integration_states(
     unit_time: int,
     max_sub_interval: float | None,
     replay_end_timestamp: float,
-    chunk_size: int | None = None,
 ) -> dict[str, Any]:
     """Replay source Recorder states using Home Assistant Integral semantics."""
 
@@ -626,15 +788,12 @@ def _replay_integration_states(
     internal_state: Decimal | None = None
     previous_source_state = first_source.state
     last_integration_timestamp = first_source.last_updated_ts
-    previous_target_row: States | None = None
-    previous_target_state_id: int | None = None
+    target_states: list[_ReplayTargetState] = []
     previous_exposed_state: str | None = None
-    states_rebuilt = 0
     final_trigger = "state_event"
 
     def write_target_state(timestamp: float, available: bool) -> None:
-        nonlocal previous_target_row, previous_target_state_id
-        nonlocal previous_exposed_state, states_rebuilt
+        nonlocal previous_exposed_state
 
         exposed_state = _integration_exposed_state(
             internal_state,
@@ -642,49 +801,18 @@ def _replay_integration_states(
             round_digits,
         )
 
-        # Recorder updates last_reported_ts rather than inserting another row when
-        # the exposed state has not changed. Reproduce that behaviour here.
         if previous_exposed_state == exposed_state:
-            if previous_target_row is not None:
-                previous_target_row.last_reported_ts = timestamp
-            elif previous_target_state_id is not None:
-                session.execute(
-                    update(States)
-                    .where(States.state_id == previous_target_state_id)
-                    .values(last_reported_ts=timestamp)
-                )
+            target_states[-1].last_reported_ts = timestamp
             return
 
-        db_state = States(
-            metadata_id      = target_states_metadata_id,
-            state            = exposed_state,
-            attributes_id    = attributes_id,
-            origin_idx       = 0,
-            last_updated_ts  = timestamp,
-            last_changed_ts  = None,
-            last_reported_ts = timestamp,
-        )
-        if previous_target_row is not None:
-            db_state.old_state = previous_target_row
-        elif previous_target_state_id is not None:
-            db_state.old_state_id = previous_target_state_id
-
-        session.add(db_state)
-        previous_target_row = db_state
-        previous_exposed_state = exposed_state
-        states_rebuilt += 1
-
-        if chunk_size is not None and states_rebuilt % chunk_size == 0:
-            session.flush()
-            if db_state.state_id is None:
-                raise ValueError("Rebuilt Recorder state has no id")
-            previous_target_state_id = db_state.state_id
-            session.commit()
-            previous_target_row = None
-            _LOGGER.info(
-                "Historical reintegration: committed state chunk; %d states rebuilt",
-                states_rebuilt,
+        target_states.append(
+            _ReplayTargetState(
+                state=exposed_state,
+                last_updated_ts=timestamp,
+                last_reported_ts=timestamp,
             )
+        )
+        previous_exposed_state = exposed_state
 
     def integrate_constant_until(timestamp: float) -> None:
         """Reproduce timer integrations up to, but not including, an event."""
@@ -826,7 +954,8 @@ def _replay_integration_states(
                 final_trigger = "time_elapsed"
 
     return {
-        "states_rebuilt": states_rebuilt,
+        "target_states": target_states,
+        "states_rebuilt": len(target_states),
         "final_internal_state": (
             str(internal_state) if internal_state is not None else None
         ),

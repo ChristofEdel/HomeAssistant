@@ -33,10 +33,12 @@ from homeassistant.util import dt as dt_util
 
 from .importer import recover_recorder_caches_after_failure
 from .maintenance import (
+    ReintegrationPlan,
     ReintegrationResult,
     perform_copy,
     perform_recalculate,
     perform_reintegrate,
+    prepare_reintegrate,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -159,19 +161,63 @@ class CopyRecorderTask(RecorderTask):
 
 
 @dataclass(slots=True)
-class ReintegrateRecorderTask(RecorderTask):
-    """Historically replay an Integral sensor on the Recorder thread."""
+class PrepareReintegrateRecorderTask(RecorderTask):
+    """Prepare an Integral replay on the Recorder thread without modifying history."""
 
-    target_entity_id: str
     source_entity_id: str
-    target_attributes: dict[str, Any]
-    target_statistics_metadata: dict[str, Any]
     method: str
     round_digits: int | None
     unit_prefix: int
     unit_time: int
     max_sub_interval: float | None
     replay_end_timestamp: float
+    chunk_size: int | None
+    future: asyncio.Future[ReintegrationPlan]
+
+    def run(self, instance) -> None:  # type: ignore[override]
+        try:
+            result = prepare_reintegrate(
+                instance,
+                self.source_entity_id,
+                self.method,
+                self.round_digits,
+                self.unit_prefix,
+                self.unit_time,
+                self.max_sub_interval,
+                self.replay_end_timestamp,
+                self.chunk_size,
+            )
+        except Exception as err:  # noqa: BLE001 - propagate to caller
+            _LOGGER.exception(
+                "Historical reintegration preparation failed for %s",
+                self.source_entity_id,
+            )
+            instance.hass.loop.call_soon_threadsafe(
+                _set_future_exception,
+                self.future,
+                err,
+            )
+        else:
+            instance.hass.loop.call_soon_threadsafe(
+                _set_future_result,
+                self.future,
+                result,
+            )
+
+
+@dataclass(slots=True)
+class ReintegrateRecorderTask(RecorderTask):
+    """Historically replay an Integral sensor on the Recorder thread."""
+
+    target_entity_id: str
+    target_attributes: dict[str, Any]
+    target_statistics_metadata: dict[str, Any]
+    round_digits: int | None
+    replay_end_timestamp: float
+    plan: ReintegrationPlan
+    current_internal_state: str | None
+    current_available: bool
+    current_state_timestamp: float
     chunk_size: int | None
     future: asyncio.Future[ReintegrationResult]
 
@@ -180,15 +226,14 @@ class ReintegrateRecorderTask(RecorderTask):
             result = perform_reintegrate(
                 instance,
                 self.target_entity_id,
-                self.source_entity_id,
                 self.target_attributes,
                 self.target_statistics_metadata,
-                self.method,
                 self.round_digits,
-                self.unit_prefix,
-                self.unit_time,
-                self.max_sub_interval,
                 self.replay_end_timestamp,
+                self.plan,
+                self.current_internal_state,
+                self.current_available,
+                self.current_state_timestamp,
                 self.chunk_size,
             )
         except Exception as err:  # noqa: BLE001 - recover and propagate to caller
@@ -443,27 +488,85 @@ async def async_reintegrate_sensor(
             f"No Recorder statistics metadata is available for {entity_id}"
         )
 
-    # Rebuild the target states and statistics on the Recorder thread. The cut-off
-    # is fixed before queueing so the replay has one deterministic end point.
+    # Calculate the rebuilt value first without modifying the target history. The
+    # live accumulator continues to run while Recorder prepares the historical replay.
     replay_end_timestamp = datetime.now(UTC).timestamp()
+    initial_internal_state = getattr(integration_entity, "_state")
     instance = get_instance(hass)
+    prepare_future: asyncio.Future[ReintegrationPlan] = hass.loop.create_future()
+    instance.queue_task(
+        PrepareReintegrateRecorderTask(
+            source_entity_id     = source_entity_id,
+            method               = method,
+            round_digits         = round_digits,
+            unit_prefix          = unit_prefix,
+            unit_time            = unit_time,
+            max_sub_interval     = max_sub_interval,
+            replay_end_timestamp = replay_end_timestamp,
+            chunk_size           = chunk_size,
+            future               = prepare_future,
+        )
+    )
+
+    try:
+        plan = await prepare_future
+    except ServiceValidationError:
+        raise
+    except Exception as err:
+        raise HistoryMaintenanceError(
+            f"Historical reintegration failed: {err}"
+        ) from err
+
+    # Rebase the running Integral sensor immediately. Any source changes which occurred
+    # while the historical replay was being calculated are retained as an accumulator
+    # delta, so all writes generated from this point use the corrected value.
+    _rebase_live_integration_sensor(
+        hass,
+        integration_entity,
+        source_entity_id,
+        initial_internal_state,
+        plan,
+    )
+
+    # Flush state-event callbacks which may still contain values generated before the
+    # live accumulator was corrected. Their Recorder tasks are therefore guaranteed to
+    # be ahead of the destructive rebuild task and will be deleted by that rebuild.
+    await hass.async_block_till_done()
+
+    current_internal_state_value = getattr(integration_entity, "_state")
+    current_internal_state = (
+        str(current_internal_state_value)
+        if isinstance(current_internal_state_value, Decimal)
+        else None
+    )
+    current_source_state = hass.states.get(source_entity_id)
+    current_available = (
+        current_source_state is None
+        or current_source_state.state != STATE_UNAVAILABLE
+    )
+    current_state_timestamp = datetime.now(UTC).timestamp()
+
+    # Queue the destructive rebuild before publishing the corrected current state.
+    # Recorder therefore processes all pre-correction writes first, rebuilds the
+    # database and cache around a corrected current anchor, and only then records this
+    # current state and any later live updates.
     future: asyncio.Future[ReintegrationResult] = hass.loop.create_future()
     instance.queue_task(
         ReintegrateRecorderTask(
             target_entity_id           = entity_id,
-            source_entity_id           = source_entity_id,
             target_attributes          = dict(target_state.attributes),
             target_statistics_metadata = dict(target_statistics_metadata),
-            method                     = method,
             round_digits               = round_digits,
-            unit_prefix                = unit_prefix,
-            unit_time                  = unit_time,
-            max_sub_interval           = max_sub_interval,
             replay_end_timestamp       = replay_end_timestamp,
+            plan                       = plan,
+            current_internal_state     = current_internal_state,
+            current_available          = current_available,
+            current_state_timestamp    = current_state_timestamp,
             chunk_size                 = chunk_size,
             future                     = future,
         )
     )
+    integration_entity.async_write_ha_state()
 
     try:
         result = await future
@@ -474,17 +577,59 @@ async def async_reintegrate_sensor(
             f"Historical reintegration failed: {err}"
         ) from err
 
-    # The Recorder database changes are committed. Replace the running Integral sensor's
-    # old accumulator with the rebuilt value before its next normal integration.
-    _synchronise_live_integration_sensor(
-        hass,
-        integration_entity,
-        source_entity_id,
-        result,
-        max_sub_interval,
-    )
-
     return result.response
+
+
+def _rebase_live_integration_sensor(
+    hass: HomeAssistant,
+    integration_entity: IntegrationSensor,
+    source_entity_id: str,
+    initial_internal_state: Decimal | None,
+    plan: ReintegrationPlan,
+) -> None:
+    """Rebase the running Integral accumulator while preserving subsequent deltas."""
+
+    if plan.final_internal_state is None:
+        rebuilt_internal_state = None
+    else:
+        try:
+            rebuilt_internal_state = Decimal(plan.final_internal_state)
+        except InvalidOperation as err:
+            raise HistoryMaintenanceError(
+                f"Invalid rebuilt Integral state: {plan.final_internal_state}"
+            ) from err
+
+    current_internal_state = getattr(integration_entity, "_state")
+    if isinstance(current_internal_state, Decimal):
+        delta = (
+            current_internal_state - initial_internal_state
+            if isinstance(initial_internal_state, Decimal)
+            else current_internal_state
+        )
+        internal_state = (
+            rebuilt_internal_state + delta
+            if rebuilt_internal_state is not None
+            else delta
+        )
+    else:
+        internal_state = rebuilt_internal_state
+
+    setattr(integration_entity, "_state", internal_state)
+    setattr(integration_entity, "_last_valid_state", internal_state)
+
+    current_source_state = hass.states.get(source_entity_id)
+    available = (
+        current_source_state is None
+        or current_source_state.state != STATE_UNAVAILABLE
+    )
+    setattr(integration_entity, "_attr_available", available)
+
+    if current_source_state is not None and available:
+        derive_attributes = getattr(
+            integration_entity,
+            "_derive_and_set_attributes_from_state",
+        )
+        derive_attributes(current_source_state)
 
 
 def _synchronise_live_integration_sensor(
