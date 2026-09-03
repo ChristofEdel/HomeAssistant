@@ -53,3 +53,12 @@ sql:
   - name: SQL Initializer
     query: "SELECT 1 AS value"
     column: "value"
+
+logger:
+  filters:
+    homeassistant.util.loop:
+      - "Detected blocking call to .* by integration 'aws_s3'"
+    homeassistant.loader:
+      - "We found a custom integration .* which has not been tested by Home Assistant.*"
+  logs:
+    custom_components.history_import: info

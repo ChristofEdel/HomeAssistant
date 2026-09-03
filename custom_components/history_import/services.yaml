@@ -43,6 +43,14 @@ import:
             - label: Replace
               value: replace
           mode: dropdown
+    chunk_size:
+      name: Chunk Size
+      description: Number of inserted or deleted database rows between commits. Required when importing more than 10,000 states. If omitted, the complete action uses one transaction.
+      required: false
+      selector:
+        number:
+          min: 1
+          mode: box
 
 recalculate:
   name: Recalculate Sensor Statistics
@@ -56,6 +64,14 @@ recalculate:
         entity:
           filter:
             - domain: sensor
+    chunk_size:
+      name: Chunk Size
+      description: Number of inserted or deleted database rows between commits. If omitted, the complete action uses one transaction.
+      required: false
+      selector:
+        number:
+          min: 1
+          mode: box
 
 copy:
   name: Copy Sensor Records
@@ -77,3 +93,32 @@ copy:
         entity:
           filter:
             - domain: sensor
+    chunk_size:
+      name: Chunk Size
+      description: Number of inserted or deleted database rows between commits. If omitted, the complete action uses one transaction.
+      required: false
+      selector:
+        number:
+          min: 1
+          mode: box
+
+reintegrate:
+  name: Reintegrate Sensor
+  description: Delete all Recorder history and statistics for an Integral integration sensor and rebuild them from the complete Recorder history of its configured source using the Integral sensor's configured method, rounding, units and max sub interval.
+  fields:
+    entity:
+      name: Integration Sensor
+      description: Integral integration sensor whose complete history and statistics are to be rebuilt.
+      required: true
+      selector:
+        entity:
+          filter:
+            - domain: sensor
+    chunk_size:
+      name: Chunk Size
+      description: Number of inserted or deleted database rows between commits. If omitted, the complete action uses one transaction.
+      required: false
+      selector:
+        number:
+          min: 1
+          mode: box

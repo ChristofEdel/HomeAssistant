@@ -9,20 +9,21 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 import logging
+from pathlib import Path
 from typing import Any
-from zoneinfo import ZoneInfo
-from functools import partial
 
 from homeassistant.components.recorder.tasks import RecorderTask
 from homeassistant.components.sensor import SensorStateClass
-from homeassistant.components.sensor import recorder as sensor_recorder
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.recorder import get_instance
+from homeassistant.util import dt as dt_util
 
-from .csv_reader import Sample, read_and_validate_csv, resolve_file_path
+from .csv_reader import Sample, read_and_validate_csv
 from .importer import (
+    MAX_UNCHUNKED_IMPORT_STATES,
     ImportMode,
+    ImportResult,
     perform_import,
     recover_recorder_caches_after_failure,
 )
@@ -32,34 +33,43 @@ _LOGGER = logging.getLogger(__name__)
 #endregion
 #--------------------------------------------------------------------------------
 
+
+#--------------------------------------------------------------------------------
+#region Shared definitions
+#--------------------------------------------------------------------------------
+
 class HistoryImportError(HomeAssistantError):
     """Base class for history import errors."""
 
+#endregion
+#--------------------------------------------------------------------------------
+
 
 #--------------------------------------------------------------------------------
-#region Actual import task, runs perform_import
+#region Recorder task
 #--------------------------------------------------------------------------------
 
 @dataclass(slots=True)
-class HistoryImportRecorderTask(RecorderTask):
-    """Run one history import atomically on the Recorder thread."""
+class ImportRecorderTask(RecorderTask):
+    """Import historical states and rebuild statistics on the Recorder thread."""
 
     entity_id: str
-    attributes: dict[str, Any]
+    entity_attributes: dict[str, Any]
     samples: tuple[Sample, ...]
     mode: ImportMode
-    future: asyncio.Future[dict[str, Any]]
+    chunk_size: int | None
+    future: asyncio.Future[ImportResult]
 
     def run(self, instance) -> None:  # type: ignore[override]
-        """Execute the import on the Recorder thread."""
         try:
             result = perform_import(
                 instance,
                 self.entity_id,
-                self.attributes,
+                self.entity_attributes,
                 self.samples,
                 self.mode,
-            ).as_dict()
+                self.chunk_size,
+            )
         except Exception as err:  # noqa: BLE001 - recover and propagate to caller
             _LOGGER.exception(
                 "History import failed for %s",
@@ -83,16 +93,19 @@ class HistoryImportRecorderTask(RecorderTask):
                 result,
             )
 
+
 def _set_future_exception(future: asyncio.Future, err: Exception) -> None:
     if not future.done():
         future.set_exception(err)
 
-def _set_future_result(future: asyncio.Future, result: dict[str, Any]) -> None:
+
+def _set_future_result(future: asyncio.Future, result: ImportResult) -> None:
     if not future.done():
         future.set_result(result)
 
 #endregion
 #--------------------------------------------------------------------------------
+
 
 #--------------------------------------------------------------------------------
 #region async_import_history, called by the UI (via handle_import())
@@ -105,6 +118,7 @@ async def async_import_history(
     file_name: str,
     mode: ImportMode,
     time_zone: str,
+    chunk_size: int | None = None,
 ) -> dict[str, Any]:
     """Validate an import request, queue it on Recorder, and return the result."""
 
@@ -119,51 +133,43 @@ async def async_import_history(
             f"Entity must have state_class measurement: {entity_id}"
         )
 
-    statistic_ids = await hass.async_add_executor_job(
-        partial(
-            sensor_recorder.list_statistic_ids,
-            hass,
-            statistic_ids=[entity_id],
-        )
-    )
-    
-    recorder_statistics_metadata = statistic_ids.get(entity_id)
-    if recorder_statistics_metadata is None:
-        raise ServiceValidationError(
-            f"No Recorder statistics metadata is available for {entity_id}"
-        )
-
-    # validate the file path
-    file_path = resolve_file_path(hass, file_name)
-    local_tz = ZoneInfo(hass.config.time_zone)
-
-    # Read the CSV and return all individual samples that we want to add
+    # Read and validate the complete CSV before queueing any database work.
+    file_path = Path(hass.config.config_dir) / file_name
     samples = await hass.async_add_executor_job(
         read_and_validate_csv,
         file_path,
         time_zone,
-        local_tz,
+        dt_util.DEFAULT_TIME_ZONE,
     )
 
-    # Import them into the database
+    if chunk_size is None and len(samples) > MAX_UNCHUNKED_IMPORT_STATES:
+        raise ServiceValidationError(
+            f"Import contains {len(samples)} states; chunk_size is required for "
+            f"imports over {MAX_UNCHUNKED_IMPORT_STATES:,} states"
+        )
+
+    # Import state history and statistics in the database
     instance = get_instance(hass)
-    future: asyncio.Future[dict[str, Any]] = hass.loop.create_future()
+    future: asyncio.Future[ImportResult] = hass.loop.create_future()
     instance.queue_task(
-        HistoryImportRecorderTask(
-            entity_id  = entity_id,
-            attributes = dict(entity_state.attributes),
-            samples    = samples,
-            mode       = mode,
-            future     = future,
+        ImportRecorderTask(
+            entity_id         = entity_id,
+            entity_attributes = dict(entity_state.attributes),
+            samples           = samples,
+            mode              = mode,
+            chunk_size        = chunk_size,
+            future            = future,
         )
     )
 
     try:
-        return await future
+        result = await future
     except ServiceValidationError:
         raise
     except Exception as err:
         raise HistoryImportError(f"History import failed: {err}") from err
+
+    return result.as_dict()
 
 #endregion
 #--------------------------------------------------------------------------------
