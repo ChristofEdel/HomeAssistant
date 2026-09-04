@@ -26,17 +26,10 @@ from homeassistant.components.recorder.models import StatisticDataTimestamp
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.helpers.recorder import session_scope
 
-from .importer import (
-    ImportMode,
-    _commit_insert_chunk,
-    _commit_stage,
-    _delete_states,
-    delete_all_statistics,
-    _get_or_create_attributes_id,
-    _rebuild_statistics,
-    _refresh_recorder_caches,
-    _validate_chunk_size,
-)
+from ..recorder_handling import refresh_recorder_caches
+from ._helpers import floor_period, format_timestamp, get_or_create_attributes_id
+from .import_history import delete_states
+from .recalculate_statistics import delete_all_statistics
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,386 +38,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 #--------------------------------------------------------------------------------
-#region Recalculate implementation
-#--------------------------------------------------------------------------------
-
-def perform_recalculate(
-    recorderInstance,
-    entity_id: str,
-    statistics_metadata: dict[str, Any],
-    chunk_size: int | None = None,
-) -> dict[str, Any]:
-    """Delete all statistics and rebuild them from the complete state history."""
-
-    _validate_chunk_size(chunk_size)
-
-    with session_scope(session=recorderInstance.get_session()) as session:
-
-        # Get or create statistics metadata
-        statistics_metadata_id = _get_or_create_statistics_metadata_id(
-            recorderInstance,
-            session,
-            entity_id,
-            statistics_metadata,
-        )
-
-        states_metadata_id = session.scalar(
-            select(StatesMeta.metadata_id).where(StatesMeta.entity_id == entity_id)
-        )
-
-        states_read = 0
-        oldest_state_timestamp: float | None = None
-        newest_state_timestamp: float | None = None
-
-        if states_metadata_id is not None:
-            states_read = session.scalar(
-                select(func.count())
-                .select_from(States)
-                .where(States.metadata_id == states_metadata_id)
-            ) or 0
-            oldest_state_timestamp = session.scalar(
-                select(func.min(States.last_updated_ts)).where(
-                    States.metadata_id == states_metadata_id
-                )
-            )
-            newest_state_timestamp = session.scalar(
-                select(func.max(States.last_updated_ts)).where(
-                    States.metadata_id == states_metadata_id
-                )
-            )
-
-        if states_metadata_id is None or oldest_state_timestamp is None:
-            _delete_all_statistics(
-                session,
-                statistics_metadata_id,
-                chunk_size,
-            )
-            short_rebuilt = 0
-            long_rebuilt = 0
-        else:
-            # Re-use the importer's REPLACE statistics path. This deletes all
-            # existing short/long-term statistics and rebuilds the complete range.
-            rebuild_result = _rebuild_statistics(
-                session,
-                ImportMode.REPLACE,
-                rebuild_start_timestamp = oldest_state_timestamp,
-                rebuild_end_timestamp   = None,
-                states_metadata_id      = states_metadata_id,
-                statistics_metadata_id  = statistics_metadata_id,
-                chunk_size              = chunk_size,
-            )
-            short_rebuilt = rebuild_result["short_term"]
-            long_rebuilt = rebuild_result["hourly"]
-
-    # The database changes have committed successfully at this point
-    _LOGGER.info(
-        "Statistics recalculation: transaction committed; "
-        "%d short-term statistics rebuilt, %d hourly statistics rebuilt",
-        short_rebuilt,
-        long_rebuilt,
-    )
-    try:
-        _refresh_recorder_caches(
-            recorderInstance,
-            entity_id,
-            statistics_metadata_id,
-        )
-    except Exception:  # noqa: BLE001
-        _LOGGER.exception(
-            "Statistics recalculation committed, but Recorder cache refresh failed"
-        )
-
-    return {
-        "entity": entity_id,
-        "states_read": states_read,
-        "short_term_statistics_rebuilt": short_rebuilt,
-        "long_term_statistics_rebuilt": long_rebuilt,
-        "oldest_state_timestamp": _format_timestamp(oldest_state_timestamp),
-        "newest_state_timestamp": _format_timestamp(newest_state_timestamp),
-    }
-
-#endregion
-#--------------------------------------------------------------------------------
-
-
-#--------------------------------------------------------------------------------
-#region Copy implementation
-#--------------------------------------------------------------------------------
-
-def perform_copy(
-    recorderInstance,
-    source_entity_id: str,
-    target_entity_id: str,
-    target_statistics_metadata: dict[str, Any],
-    chunk_size: int | None = None,
-) -> dict[str, Any]:
-    """Replace target Recorder history and statistics with a source copy."""
-
-    _validate_chunk_size(chunk_size)
-
-    with session_scope(session=recorderInstance.get_session()) as session:
-
-        # Resolve the state metadata IDs
-        source_states_metadata_id = session.scalar(
-            select(StatesMeta.metadata_id).where(
-                StatesMeta.entity_id == source_entity_id
-            )
-        )
-        target_states_metadata_id = _get_or_create_states_metadata_id(
-            session,
-            target_entity_id,
-        )
-
-        # Resolve the statistics metadata IDs
-        source_statistics_metadata = recorderInstance.statistics_meta_manager.get(
-            session,
-            source_entity_id,
-        )
-        source_statistics_metadata_id = (
-            source_statistics_metadata[0]
-            if source_statistics_metadata is not None
-            else None
-        )
-        target_statistics_metadata_id = _get_or_create_statistics_metadata_id(
-            recorderInstance,
-            session,
-            target_entity_id,
-            target_statistics_metadata,
-        )
-
-        # Read all source records before modifying the target
-        source_states: list[States] = []
-        if source_states_metadata_id is not None:
-            source_states = list(
-                session.scalars(
-                    select(States)
-                    .where(States.metadata_id == source_states_metadata_id)
-                    .order_by(States.last_updated_ts.asc(), States.state_id.asc())
-                ).all()
-            )
-
-        source_short_statistics: list[StatisticsShortTerm] = []
-        source_long_statistics: list[Statistics] = []
-        if source_statistics_metadata_id is not None:
-            source_short_statistics = list(
-                session.scalars(
-                    select(StatisticsShortTerm)
-                    .where(
-                        StatisticsShortTerm.metadata_id
-                        == source_statistics_metadata_id
-                    )
-                    .order_by(
-                        StatisticsShortTerm.start_ts.asc(),
-                        StatisticsShortTerm.id.asc(),
-                    )
-                ).all()
-            )
-            source_long_statistics = list(
-                session.scalars(
-                    select(Statistics)
-                    .where(Statistics.metadata_id == source_statistics_metadata_id)
-                    .order_by(Statistics.start_ts.asc(), Statistics.id.asc())
-                ).all()
-            )
-
-        oldest_timestamp = (
-            source_states[0].last_updated_ts if source_states else None
-        )
-        newest_timestamp = (
-            source_states[-1].last_updated_ts if source_states else None
-        )
-
-        source_state_records: list[tuple[int | None, int | None, dict[str, Any]]] = []
-        source_short_values: list[dict[str, Any]] = []
-        source_long_values: list[dict[str, Any]] = []
-        if chunk_size is not None:
-            for source_row in source_states:
-                values = _copy_column_values(
-                    States,
-                    source_row,
-                    excluded={"state_id", "old_state_id", "metadata_id", "entity_id"},
-                )
-                source_state_records.append(
-                    (source_row.state_id, source_row.old_state_id, values)
-                )
-            source_short_values = [
-                _copy_column_values(
-                    StatisticsShortTerm,
-                    source_row,
-                    excluded={"id", "metadata_id"},
-                )
-                for source_row in source_short_statistics
-            ]
-            source_long_values = [
-                _copy_column_values(
-                    Statistics,
-                    source_row,
-                    excluded={"id", "metadata_id"},
-                )
-                for source_row in source_long_statistics
-            ]
-
-        # Delete all existing target records
-        _delete_all_statistics(
-            session,
-            target_statistics_metadata_id,
-            chunk_size,
-        )
-        target_states_deleted = _delete_states(
-            recorderInstance,
-            session,
-            target_states_metadata_id,
-            cutoff = None
-        )
-
-        # Copy all state columns. Database identity / entity reference fields
-        # must be regenerated or remapped for the target sensor.
-        if chunk_size is None:
-            copied_state_rows: list[tuple[States, States]] = []
-            for source_row in source_states:
-                values = _copy_column_values(
-                    States,
-                    source_row,
-                    excluded={"state_id", "old_state_id", "metadata_id", "entity_id"},
-                )
-                values["metadata_id"] = target_states_metadata_id
-
-                if "entity_id" in States.__table__.columns:
-                    values["entity_id"] = target_entity_id
-
-                target_row = States(**values)
-                session.add(target_row)
-                copied_state_rows.append((source_row, target_row))
-
-            # Generate state IDs before rebuilding the old_state_id chain
-            session.flush()
-
-            state_id_map = {
-                source_row.state_id: target_row.state_id
-                for source_row, target_row in copied_state_rows
-                if source_row.state_id is not None and target_row.state_id is not None
-            }
-            for source_row, target_row in copied_state_rows:
-                if source_row.old_state_id is not None:
-                    target_row.old_state_id = state_id_map.get(source_row.old_state_id)
-        else:
-            state_id_map: dict[int, int] = {}
-            current_chunk_rows: dict[int, States] = {}
-            states_copied = 0
-
-            for source_state_id, source_old_state_id, source_values in source_state_records:
-                values = dict(source_values)
-                values["metadata_id"] = target_states_metadata_id
-
-                if "entity_id" in States.__table__.columns:
-                    values["entity_id"] = target_entity_id
-
-                target_row = States(**values)
-                if source_old_state_id is not None:
-                    if source_old_state_id in current_chunk_rows:
-                        target_row.old_state = current_chunk_rows[source_old_state_id]
-                    elif source_old_state_id in state_id_map:
-                        target_row.old_state_id = state_id_map[source_old_state_id]
-
-                session.add(target_row)
-                states_copied += 1
-                if source_state_id is not None:
-                    current_chunk_rows[source_state_id] = target_row
-
-                if states_copied % chunk_size == 0:
-                    session.flush()
-                    for pending_source_id, pending_target_row in current_chunk_rows.items():
-                        if pending_target_row.state_id is None:
-                            raise ValueError("Copied Recorder state has no id")
-                        state_id_map[pending_source_id] = pending_target_row.state_id
-                    session.commit()
-                    current_chunk_rows.clear()
-                    _LOGGER.info(
-                        "History copy: committed state chunk; %d states copied",
-                        states_copied,
-                    )
-
-            session.flush()
-            for pending_source_id, pending_target_row in current_chunk_rows.items():
-                if pending_target_row.state_id is None:
-                    raise ValueError("Copied Recorder state has no id")
-                state_id_map[pending_source_id] = pending_target_row.state_id
-            _commit_stage(session, chunk_size)
-
-        # Copy every mapped statistics column other than the row identity and
-        # metadata_id, which necessarily belong to the target sensor.
-        if chunk_size is None:
-            for source_row in source_short_statistics:
-                values = _copy_column_values(
-                    StatisticsShortTerm,
-                    source_row,
-                    excluded={"id", "metadata_id"},
-                )
-                values["metadata_id"] = target_statistics_metadata_id
-                session.add(StatisticsShortTerm(**values))
-        else:
-            for count, source_values in enumerate(source_short_values, start=1):
-                values = dict(source_values)
-                values["metadata_id"] = target_statistics_metadata_id
-                session.add(StatisticsShortTerm(**values))
-                _commit_insert_chunk(session, chunk_size, count)
-        _commit_stage(session, chunk_size)
-
-        if chunk_size is None:
-            for source_row in source_long_statistics:
-                values = _copy_column_values(
-                    Statistics,
-                    source_row,
-                    excluded={"id", "metadata_id"},
-                )
-                values["metadata_id"] = target_statistics_metadata_id
-                session.add(Statistics(**values))
-        else:
-            for count, source_values in enumerate(source_long_values, start=1):
-                values = dict(source_values)
-                values["metadata_id"] = target_statistics_metadata_id
-                session.add(Statistics(**values))
-                _commit_insert_chunk(session, chunk_size, count)
-
-        session.flush()
-        _commit_stage(session, chunk_size)
-
-    # The database changes have committed successfully at this point
-    _LOGGER.info(
-        "History copy: transaction committed; %d states copied, "
-        "%d short-term statistics copied, %d long-term statistics copied",
-        states_copied,
-        len(source_short_statistics),
-        len(source_long_statistics),
-    )
-    try:
-        _refresh_recorder_caches(
-            recorderInstance,
-            target_entity_id,
-            target_statistics_metadata_id,
-        )
-    except Exception:  # noqa: BLE001
-        _LOGGER.exception(
-            "History copy committed, but Recorder cache refresh failed"
-        )
-
-    return {
-        "sensor_from": source_entity_id,
-        "sensor_to": target_entity_id,
-        "states_deleted": target_states_deleted,
-        "states_copied": len(source_states),
-        "short_term_statistics_copied": len(source_short_statistics),
-        "long_term_statistics_copied": len(source_long_statistics),
-        "oldest_copied_timestamp": _format_timestamp(oldest_timestamp),
-        "newest_copied_timestamp": _format_timestamp(newest_timestamp),
-    }
-
-#endregion
-#--------------------------------------------------------------------------------
-
-
-#--------------------------------------------------------------------------------
-#region Reintegrate implementation
+#region rerun_integration implementation
 #--------------------------------------------------------------------------------
 
 @dataclass(slots=True)
@@ -469,7 +83,7 @@ class ReintegrationPlan:
     final_trigger: str
 
 
-def prepare_reintegrate(
+def prepare_rerun_integration(
     recorderInstance,
     source_entity_id: str,
     method: str,
@@ -478,11 +92,9 @@ def prepare_reintegrate(
     unit_time: int,
     max_sub_interval: float | None,
     replay_end_timestamp: float,
-    chunk_size: int | None = None,
+    chunk_size: int,
 ) -> ReintegrationPlan:
     """Calculate an Integral replay without modifying the target Recorder history."""
-
-    _validate_chunk_size(chunk_size)
 
     with session_scope(session=recorderInstance.get_session()) as session:
 
@@ -553,7 +165,7 @@ def prepare_reintegrate(
     )
 
 
-def perform_reintegrate(
+def perform_rerun_integration(
     recorderInstance,
     target_entity_id: str,
     target_attributes: dict[str, Any],
@@ -564,11 +176,9 @@ def perform_reintegrate(
     current_internal_state: str | None,
     current_available: bool,
     current_state_timestamp: float,
-    chunk_size: int | None = None,
+    chunk_size: int,
 ) -> ReintegrationResult:
     """Replace Integral history after the running sensor has been corrected."""
-
-    _validate_chunk_size(chunk_size)
 
     with session_scope(session=recorderInstance.get_session()) as session:
 
@@ -583,18 +193,19 @@ def perform_reintegrate(
             target_statistics_metadata,
         )
 
-        _delete_all_statistics(
+        delete_all_statistics(
             session,
             target_statistics_metadata_id
         )
-        target_states_deleted = _delete_states(
+        target_states_deleted = delete_states(
             recorderInstance,
             session,
             target_states_metadata_id,
             cutoff = None,
         )
+        session.commit()
 
-        attributes_id = _get_or_create_attributes_id(session, target_attributes)
+        attributes_id = get_or_create_attributes_id(session, target_attributes)
 
         internal_state = (
             Decimal(current_internal_state)
@@ -641,10 +252,9 @@ def perform_reintegrate(
         session.commit()
 
         try:
-            _refresh_recorder_caches(
+            refresh_recorder_caches(
                 recorderInstance,
-                target_entity_id,
-                target_statistics_metadata_id,
+                target_entity_id
             )
         except Exception:  # noqa: BLE001
             _LOGGER.exception(
@@ -676,10 +286,9 @@ def perform_reintegrate(
         statistics_result["hourly"],
     )
     try:
-        _refresh_recorder_caches(
+        refresh_recorder_caches(
             recorderInstance,
-            target_entity_id,
-            target_statistics_metadata_id,
+            target_entity_id
         )
     except Exception:  # noqa: BLE001
         _LOGGER.exception(
@@ -697,9 +306,9 @@ def perform_reintegrate(
         "states_rebuilt": len(plan.target_states),
         "short_term_statistics_rebuilt": statistics_result["short_term"],
         "long_term_statistics_rebuilt": statistics_result["hourly"],
-        "oldest_source_timestamp": _format_timestamp(plan.oldest_source_timestamp),
-        "newest_source_timestamp": _format_timestamp(plan.newest_source_timestamp),
-        "final_state_timestamp": _format_timestamp(current_state_timestamp),
+        "oldest_source_timestamp": format_timestamp(plan.oldest_source_timestamp),
+        "newest_source_timestamp": format_timestamp(plan.newest_source_timestamp),
+        "final_state_timestamp": format_timestamp(current_state_timestamp),
         "final_state": current_exposed_state,
     }
 
@@ -767,7 +376,7 @@ def _insert_reintegration_history(
         .where(States.state_id == current_anchor_state_id)
         .values(old_state_id=previous_target_state_id)
     )
-    _commit_stage(session, chunk_size)
+    session.commit()
 
 
 def _replay_integration_states(
@@ -1040,7 +649,7 @@ def _rebuild_total_statistics(
     states_metadata_id: int,
     statistics_metadata_id: int,
     replay_end_timestamp: float,
-    chunk_size: int | None = None,
+    chunk_size: int,
 ) -> dict[str, int]:
     """Rebuild complete total-sensor short- and long-term statistics."""
 
@@ -1069,8 +678,8 @@ def _rebuild_total_statistics(
 
     created_ts = datetime.now(UTC).timestamp()
     baseline = numeric_values[0][1]
-    short_start = _floor_period(numeric_values[0][0], 5 * 60)
-    short_end = _floor_period(replay_end_timestamp, 5 * 60)
+    short_start = floor_period(numeric_values[0][0], 5 * 60)
+    short_end = floor_period(replay_end_timestamp, 5 * 60)
 
     short_term_statistics_rebuilt = 0
     pointer = 0
@@ -1098,20 +707,16 @@ def _rebuild_total_statistics(
                 )
             )
             short_term_statistics_rebuilt += 1
-            _commit_insert_chunk(
-                session,
-                chunk_size,
-                short_term_statistics_rebuilt,
-            )
+            if short_term_statistics_rebuilt % chunk_size == 0:
+                session.commit()
 
         bucket_start = bucket_end
 
-    session.flush()
-    _commit_stage(session, chunk_size)
+    session.commit()
 
     hourly_statistics_rebuilt = 0
-    hour_start = _floor_period(short_start, 60 * 60)
-    hour_end = _floor_period(replay_end_timestamp, 60 * 60)
+    hour_start = floor_period(short_start, 60 * 60)
+    hour_end = floor_period(replay_end_timestamp, 60 * 60)
 
     short_rows = list(
         session.scalars(
@@ -1129,7 +734,7 @@ def _rebuild_total_statistics(
     for row in short_rows:
         if row.start_ts is None:
             continue
-        by_hour[_floor_period(row.start_ts, 60 * 60)] = (
+        by_hour[floor_period(row.start_ts, 60 * 60)] = (
             row.state,
             row.sum,
             row.last_reset_ts,
@@ -1155,14 +760,11 @@ def _rebuild_total_statistics(
                     )
                 )
                 hourly_statistics_rebuilt += 1
-                _commit_insert_chunk(
-                    session,
-                    chunk_size,
-                    hourly_statistics_rebuilt,
-                )
+                if hourly_statistics_rebuilt % chunk_size == 0:
+                    session.commit()
         hour += 60 * 60
 
-    _commit_stage(session, chunk_size)
+    session.commit()
 
     return {
         "short_term": short_term_statistics_rebuilt,
@@ -1222,55 +824,6 @@ def _get_or_create_statistics_metadata_id(
     assert statistics_metadata_id is not None
     return statistics_metadata_id
 
-
-def _delete_all_statistics(
-    session: Session,
-    statistics_metadata_id: int,
-    chunk_size: int | None = None,
-) -> None:
-    """Delete all short- and long-term statistics for a statistics metadata ID."""
-    if chunk_size is None:
-        session.execute(
-            delete(StatisticsShortTerm).where(
-                StatisticsShortTerm.metadata_id == statistics_metadata_id
-            )
-        )
-        session.execute(
-            delete(Statistics).where(
-                Statistics.metadata_id == statistics_metadata_id
-            )
-        )
-        return
-
-    delete_all_statistics(
-        session,
-        statistics_metadata_id,
-    )
-    _commit_stage(session, chunk_size)
-
-
-def _copy_column_values(
-    model,
-    source_row,
-    *,
-    excluded: set[str],
-) -> dict[str, Any]:
-    """Copy all mapped table columns except explicitly replaced columns."""
-    return {
-        column.key: getattr(source_row, column.key)
-        for column in model.__table__.columns
-        if column.key not in excluded and not column.primary_key
-    }
-
-
-def _floor_period(timestamp: float, period: int) -> float:
-    return float(math.floor(timestamp / period) * period)
-
-
-def _format_timestamp(timestamp: float | None) -> str | None:
-    if timestamp is None:
-        return None
-    return datetime.fromtimestamp(timestamp, UTC).isoformat()
 
 #endregion
 #--------------------------------------------------------------------------------

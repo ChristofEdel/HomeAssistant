@@ -43,14 +43,6 @@ import:
             - label: Replace
               value: replace
           mode: dropdown
-    chunk_size:
-      name: Chunk Size
-      description: Number of inserted or deleted database rows between commits. Required when importing more than 10,000 states. If omitted, the complete action uses one transaction.
-      required: false
-      selector:
-        number:
-          min: 1
-          mode: box
 
 recalculate:
   name: Recalculate Sensor Statistics
@@ -64,14 +56,6 @@ recalculate:
         entity:
           filter:
             - domain: sensor
-    chunk_size:
-      name: Chunk Size
-      description: Number of inserted or deleted database rows between commits. If omitted, the complete action uses one transaction.
-      required: false
-      selector:
-        number:
-          min: 1
-          mode: box
 
 copy:
   name: Copy Sensor Records
@@ -93,14 +77,6 @@ copy:
         entity:
           filter:
             - domain: sensor
-    chunk_size:
-      name: Chunk Size
-      description: Number of inserted or deleted database rows between commits. If omitted, the complete action uses one transaction.
-      required: false
-      selector:
-        number:
-          min: 1
-          mode: box
 
 reintegrate:
   name: Reintegrate Sensor
@@ -114,11 +90,3 @@ reintegrate:
         entity:
           filter:
             - domain: sensor
-    chunk_size:
-      name: Chunk Size
-      description: Number of inserted or deleted database rows between commits. If omitted, the complete action uses one transaction.
-      required: false
-      selector:
-        number:
-          min: 1
-          mode: box

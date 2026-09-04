@@ -249,7 +249,7 @@ def _parse_timestamp(text: str, time_zone: str, local_tz: ZoneInfo) -> float:
 
 
 def _localize_strict(value: datetime, tz: ZoneInfo) -> datetime:
-    """Attach a local timezone while rejecting DST gaps and folds."""
+    """Attach a local timezone while rejecting DST gaps."""
     fold0 = value.replace(tzinfo=tz, fold=0)
     fold1 = value.replace(tzinfo=tz, fold=1)
 
@@ -262,9 +262,6 @@ def _localize_strict(value: datetime, tz: ZoneInfo) -> datetime:
 
     if not valid0 and not valid1:
         raise ValueError("nonexistent local time caused by a DST transition")
-
-    if valid0 and valid1 and fold0.utcoffset() != fold1.utcoffset():
-        raise ValueError("ambiguous local time caused by a DST transition")
 
     return fold0 if valid0 else fold1
 
