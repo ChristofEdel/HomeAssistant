@@ -1,0 +1,36 @@
+title: History
+path: history
+icon: mdi:database-export-outline
+type: sections
+theme: standard-dashboard
+max_columns: 3
+
+sections:
+  - type: grid
+    column_span: 3
+    cards:
+      - type: heading
+        heading: Download Entity History
+        icon: mdi:database-export-outline
+        grid_options:
+          columns: full
+
+      - type: vertical-stack
+        grid_options:
+          columns: 9
+        cards:
+          - type: entities
+            entities:
+              - entity: input_text.import_export_filter
+                name: Entity Filter
+
+              - entity: select.import_export_entity
+                name: Entity
+
+          - type: custom:recorder-history-query-buttons-card
+            entity: select.import_export_entity
+            script: script.get_entity_history
+
+      - type: custom:recorder-history-query-result-card
+        grid_options:
+          columns: 27

@@ -1,6 +1,26 @@
 input_text:
-  recorder_history_filter:
+  import_export_filter:
     name: Search
+
+  import_export_file:
+    name: File
+    max: 255
+
+input_select:
+  import_export_import_mode:
+    name: Existing States
+    options:
+      - append
+      - overwrite
+      - replace
+    initial: append
+
+  import_export_time_zone:
+    name: Time Zone
+    options:
+      - UTC
+      - local
+    initial: UTC
 
 script:
   get_entity_history:
@@ -39,7 +59,7 @@ script:
                 ON statistics_short_term.metadata_id = statistics_meta.id
               WHERE statistics_meta.statistic_id = '{{ entity_id }}'
               ORDER BY statistics_short_term.start_ts DESC
-              LIMIT 100
+              LIMIT 10000
             {% elif history_type == 'long_term' %}
               SELECT
                 statistics.start_ts,
@@ -131,12 +151,36 @@ script:
       - stop: ""
         response_variable: result
 
+  import_selected_entity_history:
+    alias: Import Selected Entity History
+    sequence:
+      - action: history_import.import
+        data:
+          entity: "{{ states('select.import_export_entity') }}"
+          file: "{{ states('input_text.import_export_file') }}"
+          import_mode: "{{ states('input_select.import_export_import_mode') }}"
+          time_zone: "{{ states('input_select.import_export_time_zone') }}"
+
+  recalculate_selected_entity_statistics:
+    alias: Recalculate Selected Entity Statistics
+    sequence:
+      - action: history_import.recalculate
+        data:
+          entity: "{{ states('select.import_export_entity') }}"
+
+  reintegrate_selected_entity:
+    alias: Reintegrate Selected Entity
+    sequence:
+      - action: history_import.reintegrate
+        data:
+          entity: "{{ states('select.import_export_entity') }}"
+
 template:
   # Build the list from Recorder states and statistics metadata.
   - sensor:
-      - name: Recorder History Entity List
-        default_entity_id: sensor.recorder_history_entity_list
-        unique_id: recorder_history_entity_list
+      - name: Import Export Entity List
+        default_entity_id: sensor.import_export_entity_list
+        unique_id: import_export_entity_list
         state: "{{ recorder_entities.result | count }}"
         attributes:
           entities: >-
@@ -170,15 +214,15 @@ template:
 
   # Dashboard selector, filtered by the search helper.
   - select:
-      - name: Recorder History Entity
-        default_entity_id: select.recorder_history_entity
-        unique_id: recorder_history_entity
+      - name: Import Export Entity
+        default_entity_id: select.import_export_entity
+        unique_id: import_export_entity
         optimistic: true
         options: >-
           {% set entities =
-            state_attr('sensor.recorder_history_entity_list', 'entities') or []
+            state_attr('sensor.import_export_entity_list', 'entities') or []
           %}
-          {% set filter = states('input_text.recorder_history_filter') | lower %}
+          {% set filter = states('input_text.import_export_filter') | lower %}
           {{ entities
             | select('search', filter, ignorecase=true)
             | list
@@ -187,9 +231,12 @@ template:
 recorder:
   exclude:
     entities:
-      - sensor.recorder_history_entity_list
-      - select.recorder_history_entity
-      - input_text.recorder_history_filter
+      - sensor.import_export_entity_list
+      - select.import_export_entity
+      - input_text.import_export_filter
+      - input_text.import_export_file
+      - input_select.import_export_import_mode
+      - input_select.import_export_time_zone
       - input_button.history_dashboard_get_recorder_history
       - input_button.history_dashboard_get_short_term_statistics
       - input_button.history_dashboard_get_long_term_statistics

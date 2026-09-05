@@ -1,0 +1,8 @@
+# dashboard/import-export-dashboard.yaml
+apexcharts_card_templates: !include ../apexcharts-card-templates.yaml
+
+views:
+  - !include import-export-view-export.yaml
+  - !include import-export-view-import.yaml
+  - !include import-export-view-maintenance.yaml
+  

@@ -35,6 +35,12 @@ lovelace:
       title: Home
       icon: mdi:home
       show_in_sidebar: true
+    import-export-dashboard:
+      mode: yaml
+      filename: dashboards/import-export/import-export-dashboard.yaml
+      title: Import/Export
+      icon: mdi:database-outline
+      show_in_sidebar: true
     test-dashboard:
       mode: yaml
       filename: dashboards/test/test-dashboard.yaml

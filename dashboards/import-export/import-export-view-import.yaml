@@ -1,0 +1,44 @@
+title: Import
+path: import
+icon: mdi:database-import-outline
+type: sections
+theme: standard-dashboard
+max_columns: 3
+
+sections:
+  - type: grid
+    column_span: 3
+    cards:
+      - type: heading
+        heading: Import Entity History
+        icon: mdi:database-import-outline
+        grid_options:
+          columns: full
+
+      - type: vertical-stack
+        grid_options:
+          columns: 9
+        cards:
+          - type: entities
+            entities:
+              - entity: input_text.import_export_filter
+                name: Entity Filter
+
+              - entity: select.import_export_entity
+                name: Entity
+
+              - entity: input_text.import_export_file
+                name: File
+
+              - entity: input_select.import_export_import_mode
+                name: Import Mode
+
+              - entity: input_select.import_export_time_zone
+                name: Time Zone
+
+          - type: shortcut
+            label: Import
+            icon: mdi:database-import
+            tap_action:
+              action: perform-action
+              perform_action: script.import_selected_entity_history
