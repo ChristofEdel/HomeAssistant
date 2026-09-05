@@ -102,6 +102,10 @@ def recover_recorder_caches_after_failure(instance, entity_id: str) -> None:
         metadata_id = session.scalar(
             select(StatesMeta.metadata_id).where(StatesMeta.entity_id == entity_id)
         )
+
+        statistic_metadata_id = session.scalar(
+            select(StatisticsMeta.id).where(StatisticsMeta.statistic_id == entity_id)
+        )
         latest_state = None
         if metadata_id is not None:
             latest_state = session.scalar(
@@ -129,3 +133,16 @@ def recover_recorder_caches_after_failure(instance, entity_id: str) -> None:
             session,
             statistic_ids={entity_id},
         )
+
+        if statistic_metadata_id is not None:
+            run_cache = recorder_statistics.get_short_term_statistics_run_cache(
+                instance.hass
+            )
+            latest_ids = getattr(run_cache, "_latest_id_by_metadata_id", None)
+            if latest_ids is not None:
+                latest_ids.pop(statistic_metadata_id, None)
+            recorder_statistics.cache_latest_short_term_statistic_id_for_metadata_id(
+                run_cache,
+                session,
+                statistic_metadata_id,
+            )

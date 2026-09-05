@@ -80,11 +80,37 @@ copy:
 
 reintegrate:
   name: Reintegrate Sensor
-  description: Delete all Recorder history and statistics for an Integral integration sensor and rebuild them from the complete Recorder history of its configured source using the Integral sensor's configured method, rounding, units and max sub interval.
+  description: Delete all Recorder history and statistics for an Integral integration sensor and rebuild them from the Recorder history of its configured source.
   fields:
     entity:
       name: Integration Sensor
       description: Integral integration sensor whose complete history and statistics are to be rebuilt.
+      required: true
+      selector:
+        entity:
+          filter:
+            - domain: sensor
+
+reconstruct_utility_meter:
+  name: Reconstruct Utility Meter
+  description: Delete all Recorder history and statistics for a Utility Meter sensor and rebuild them from the Recorder history of its configured source.
+  fields:
+    entity:
+      name: Utility Meter
+      description: Utility Meter sensor whose complete history and statistics are to be rebuilt. Tariff meters are not supported.
+      required: true
+      selector:
+        entity:
+          filter:
+            - domain: sensor
+
+rebuild:
+  name: Rebuild Sensor
+  description: Rebuild a sensor's data from the underlying recorder stats.
+  fields:
+    entity:
+      name: Sensor
+      description: Sensor whose history or statistics are to be rebuilt.
       required: true
       selector:
         entity:

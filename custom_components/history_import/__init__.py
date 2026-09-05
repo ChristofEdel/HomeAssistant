@@ -11,8 +11,11 @@ from typing import Any, Final
 
 import voluptuous as vol
 
+from homeassistant.components.integration.sensor import IntegrationSensor
+from homeassistant.components.utility_meter.sensor import UtilityMeterSensor
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.entity_component import DATA_INSTANCES
 from homeassistant.helpers.typing import ConfigType
 
 #endregion
@@ -70,7 +73,64 @@ RERUN_INTEGRATION_SERVICE_SCHEMA = vol.Schema(
     }
 )
 
+from .tasks.reconstruct_utility_meter_task import async_reconstruct_utility_meter
+SERVICE_RECONSTRUCT_UTILITY_METER: Final = "reconstruct_utility_meter"
+RECONSTRUCT_UTILITY_METER_SERVICE_SCHEMA = vol.Schema(
+    {
+        vol.Required("entity"): cv.entity_id,
+    }
+)
+
+SERVICE_REBUILD: Final = "rebuild"
+REBUILD_SERVICE_SCHEMA = vol.Schema(
+    {
+        vol.Required("entity"): cv.entity_id,
+    }
+)
+
 #endregion
+
+#--------------------------------------------------------------------------------
+#region Consolidated service for rebuilding any sensor type
+#--------------------------------------------------------------------------------
+async def async_rebuild_sensor(
+    hass: HomeAssistant,
+    *,
+    entity_id: str,
+    chunk_size: int,
+) -> dict[str, Any]:
+    """Rebuild a sensor using the appropriate maintenance operation."""
+
+    sensor_component = hass.data.get(DATA_INSTANCES, {}).get("sensor")
+    sensor_entity = (
+        sensor_component.get_entity(entity_id)
+        if sensor_component is not None
+        else None
+    )
+
+    if isinstance(sensor_entity, IntegrationSensor):
+        return await async_rerun_integration_sensor(
+            hass,
+            entity_id=entity_id,
+            chunk_size=chunk_size,
+        )
+
+    if isinstance(sensor_entity, UtilityMeterSensor):
+        return await async_reconstruct_utility_meter(
+            hass,
+            entity_id=entity_id,
+            chunk_size=chunk_size,
+        )
+
+    return await async_recalculate_statistics(
+        hass,
+        entity_id=entity_id,
+        chunk_size=chunk_size,
+    )
+
+#endregion
+#--------------------------------------------------------------------------------
+
 
 #--------------------------------------------------------------------------------
 #region Register the services offered by this integration
@@ -111,6 +171,20 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             chunk_size=CHUNK_SIZE,
         )
 
+    async def handle_reconstruct_utility_meter(call: ServiceCall) -> dict[str, Any]:
+        return await async_reconstruct_utility_meter(
+            hass,
+            entity_id=call.data["entity"],
+            chunk_size=CHUNK_SIZE,
+        )
+
+    async def handle_rebuild(call: ServiceCall) -> dict[str, Any]:
+        return await async_rebuild_sensor(
+            hass,
+            entity_id=call.data["entity"],
+            chunk_size=CHUNK_SIZE,
+        )
+
     hass.services.async_register(
         DOMAIN,
         SERVICE_IMPORT_HISTORY,
@@ -143,6 +217,25 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         supports_response=SupportsResponse.OPTIONAL,
     )
 
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_RECONSTRUCT_UTILITY_METER,
+        handle_reconstruct_utility_meter,
+        schema=RECONSTRUCT_UTILITY_METER_SERVICE_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_REBUILD,
+        handle_rebuild,
+        schema=REBUILD_SERVICE_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+
     return True
 
 #endregion
+#--------------------------------------------------------------------------------
+
+
