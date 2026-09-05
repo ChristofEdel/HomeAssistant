@@ -10,7 +10,7 @@ sections:
     column_span: 3
     cards:
       - type: heading
-        heading: Recalculate Entity History
+        heading: Rebuild Entity History
         icon: mdi:database-cog-outline
         grid_options:
           columns: full
@@ -27,18 +27,29 @@ sections:
               - entity: select.import_export_entity
                 name: Entity
 
-          - type: vertical-stack
-            cards:
-              - type: shortcut
-                label: Recalculate Statistics
-                icon: mdi:calculator-variant
-                tap_action:
-                  action: perform-action
-                  perform_action: script.recalculate_selected_entity_statistics
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: script.rebuild_selected_entity
+                state: "off"
+            card:
+              type: shortcut
+              label: Rebuild
+              icon: mdi:database-sync
+              tap_action:
+                action: perform-action
+                perform_action: script.rebuild_selected_entity
 
-              - type: shortcut
-                label: Reintegrate
-                icon: mdi:chart-bell-curve-cumulative
-                tap_action:
-                  action: perform-action
-                  perform_action: script.reintegrate_selected_entity
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: script.rebuild_selected_entity
+                state: "on"
+            card:
+              type: shortcut
+              label: Rebuilding...
+              description: Operation in progress
+              icon: mdi:progress-clock
+              color: disabled
+              tap_action:
+                action: none
