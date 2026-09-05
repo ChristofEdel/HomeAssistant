@@ -175,6 +175,14 @@ script:
         data:
           entity: "{{ states('select.import_export_entity') }}"
 
+  rebuild_selected_entity:
+    alias: Rebuild Selected Entity
+    mode: single
+    sequence:
+      - action: history_import.rebuild
+        data:
+          entity: "{{ states('select.import_export_entity') }}"
+
 template:
   # Build the list from Recorder states and statistics metadata.
   - sensor:

@@ -294,7 +294,6 @@ def rebuild_statistics_with_commit(
                 delete_all_statistics(session, statistics_metadata_id)
 
     session.commit()
-    _LOGGER.info("Deleted statistics for %s", statistics_metadata_id)
 
     # Rebuild 5-minute statistics
     short_term_statistics_rebuilt = 0
