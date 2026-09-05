@@ -1,0 +1,75 @@
+#------------------------------------------------------------------------------
+#
+# Weather sensors
+#
+#
+#  - generic_rainfall_total:   the total rainfall, in mm, since records began
+#  - generic_rainfall_daily:   utility meter with daily rainfall
+#  - generic_rainfall_monthly: utility meter with monthly rainfall
+#  - generic_rainfall_yearly:  utility meter with yearly rainfall
+
+
+# the Davis Weatherlink integration sensor 'outdoor_iss_daily_rainfall' provides 
+# rainfail in sensor 'tips' (0.2mm each) since midnight and resets every day.
+#
+# The below sensor 'generic_rainfall_cumulative' uses that to construct a 
+# timeline of rainfall, in mm, since the beginning of records. 
+#
+
+template:
+  - sensor:
+      - name: "Cumulative Rainfall"
+        default_entity_id: sensor.generic_rainfall_cumulative
+        unique_id: generic_rainfall_cumulative
+        device_class: precipitation
+        state_class: total_increasing
+        unit_of_measurement: "mm"
+
+        state: >
+          {% set old = this.attributes.get('last_source_value') %}
+          {% set new = trigger.to_state.state | float %}
+          {% set total = this.state | float(0) %}
+
+          {% if old is none %}
+            {# initialisation when first value is seen #}
+            {{ (new * 0.2) | round(3) }}
+          {% elif new > (old | float) %}
+            {# If the sensor increases, we add the difference to our value #}
+            {{ (total + (new - (old | float)) * 0.2) | round(3) }}
+          {% else %}
+            {# If the sensor decreases (or is unchanged), keep the current value #}
+            {{ total }}
+          {% endif %}
+
+        attributes:
+          last_source_value: >
+            {{ trigger.to_state.state | float }}
+
+    triggers:
+      - trigger: state
+        entity_id: sensor.outdoor_iss_daily_rainfall
+        not_to:
+          - unknown
+          - unavailable
+
+utility_meter:
+  generic_rainfall_daily:
+    name: "Daily Rainfall"
+    unique_id: generic_rainfall_daily
+    source: sensor.generic_rainfall_cumulative
+    cycle: daily
+    periodically_resetting: false
+
+  generic_rainfall_monthly:
+    name: "Monthly Rainfall"
+    unique_id: generic_rainfall_monthly
+    source: sensor.generic_rainfall_cumulative
+    cycle: monthly
+    periodically_resetting: false
+
+  generic_rainfall_yearly:
+    name: "Annual Rainfall"
+    unique_id: generic_rainfall_yearly
+    source: sensor.generic_rainfall_cumulative
+    cycle: yearly
+    periodically_resetting: false
