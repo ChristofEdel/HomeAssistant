@@ -245,102 +245,6 @@ template:
           )
         }}
 
-  # Homeassistant's built-in power dashboards needs a total imported energy and total exported energy sensor. 
-  # The Victron integration does not provide these, so we use the MQTT sensors to calculate them.
-  #
-  # NOTE - there is no point to do this real-time, so we use the standard Victron integration for these sensors
-    - name: "Grid Power L1 - Import"
-      unique_id: victron_gx_grid_power_l1_import
-      default_entity_id: sensor.victron_gx_grid_power_l1_import
-      unit_of_measurement: W
-      device_class: power
-      state_class: measurement
-      state: >
-        {{ max(0, states('sensor.victron_gx_grid_power_l1') | float(0)) }}
-      availability: >
-        {{ has_value('sensor.victron_gx_grid_power_l1') }}
-
-    - name: "Grid Power L1 - Export"
-      unique_id: victron_gx_grid_power_l1_export
-      default_entity_id: sensor.victron_gx_grid_power_l1_export
-      unit_of_measurement: W
-      device_class: power
-      state_class: measurement
-      state: >
-        {{ max(0, - (states('sensor.victron_gx_grid_power_l1') | float(0))) }}
-      availability: >
-        {{ has_value('sensor.victron_gx_grid_power_l1') }}
-
-    - name: "Battery Power - Charging"
-      unique_id: victron_gx_dc_battery_power_charging
-      default_entity_id: sensor.victron_gx_dc_battery_power_charging
-      unit_of_measurement: W
-      device_class: power
-      state_class: measurement
-      state: >
-        {{ max(0, states('sensor.victron_gx_dc_battery_power') | float(0)) }}
-      availability: >
-        {{ has_value('sensor.victron_gx_dc_battery_power') }}
-
-    - name: "Battery Power - Discharging"
-      unique_id: victron_gx_dc_battery_power_discharging
-      default_entity_id: sensor.victron_gx_dc_battery_power_discharging
-      unit_of_measurement: W
-      device_class: power
-      state_class: measurement
-      state: >
-        {{ max(0, -(states('sensor.victron_gx_dc_battery_power') | float(0))) }}
-      availability: >
-        {{ has_value('sensor.victron_gx_dc_battery_power') }}
-
-sensor:
-  - platform: integration
-    source: sensor.victron_gx_grid_power_l1_import
-    name: "Grid Energy - Import"
-    unique_id: grid_energy_import
-    method: left
-    unit_prefix: k
-    unit_time: h
-    round: 3
-
-  - platform: integration
-    source: sensor.victron_gx_grid_power_l1_export
-    name: "Grid Energy - Export"
-    unique_id: grid_energy_export
-    method: left
-    unit_prefix: k
-    unit_time: h
-    round: 3
-
-  - platform: integration
-    source: sensor.victron_gx_dc_battery_power_charging
-    name: "Battery Energy - Charged"
-    unique_id: battery_energy_charged
-    method: left
-    unit_prefix: k
-    unit_time: h
-    round: 3
-
-  - platform: integration
-    source: sensor.victron_gx_dc_battery_power_discharging
-    name: "Battery Energy - Discharged"
-    unique_id: battery_energy_discharged
-    method: left
-    unit_prefix: k
-    unit_time: h
-    round: 3
-
-  - platform: integration
-    source: sensor.victron_gx_pv_on_output_power_l1
-    name: "Solar Energy Total (Victron)"
-    unique_id: solar_energy_total_victron
-    unit_prefix: k
-    unit_time: h
-    method: trapezoidal
-    round: 3
-    max_sub_interval:
-      minutes: 1
-
 utility_meter:
   solar_production_today_victron:
     source: sensor.solar_energy_total_victron
@@ -348,17 +252,6 @@ utility_meter:
     unique_id: solar_production_today_victron
     cycle: daily
     periodically_resetting: false
-
-homeassistant:
-  customize:
-    sensor.grid_energy_import:
-      state_class: total_increasing
-    sensor.grid_energy_export:
-      state_class: total_increasing
-    sensor.battery_energy_charged:
-      state_class: total_increasing
-    sensor.battery_energy_discharged:
-      state_class: total_increasing
 
 input_datetime:
   energy_chart_day:
@@ -373,3 +266,14 @@ input_datetime:
     name: End date for Energy Chart
     has_date: true
     has_time: false
+
+recorder:
+  exclude:
+    entities:
+      - sensor.victron_real_time_power_tracking_error
+      - sensor.victron_real_time_battery_power_calculated
+      - sensor.victron_real_time_power_consumption
+      - sensor.victron_real_time_grid_power
+      - sensor.victron_real_time_solar_power
+      - sensor.victron_real_time_power_untracked
+      - sensor.victron_real_time_battery_power
