@@ -23,7 +23,7 @@ The action is available in Home Assistant’s Actions UI and has the following p
 | File      | path to CSV file                   | -        |
 | States    | `append` / `overwrite` / `replace` | `append` |
 
-At this stage, only entities with state_class: measurement are supported.
+Entities with `state_class: measurement` and `state_class: total_increasing` are supported.
 
 ## Input File Format
 
@@ -64,7 +64,7 @@ The **entire file is validated before any database changes are made**.
 
 Validation includes:
 
-- entity exists, and is a sensor with `state_class: measurement`;
+- entity exists, and is a sensor with `state_class: measurement` or `state_class: total_increasing`;
 - every data row has at least two columns;
 - every timestamp is valid;
 - every value is a finite numeric value;
@@ -86,6 +86,8 @@ If validation fails, the action terminates with an error identifying the CSV lin
 After a successful state import, statistics (both short-term and long-term) affected by the operation are rebuilt from the resulting Recorder states.
 
 For a `measurement` entity this means mean, min and max values for each bucket.
+
+For a `total_increasing` entity this means state and cumulative sum values using Home Assistant reset semantics. Because the sum is cumulative, importing older history rebuilds all later statistics through the newest completed bucket.
 
 All buckets affected by the import are recalculated. 
 

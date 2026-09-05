@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from homeassistant.components.recorder import purge as recorder_purge
 from homeassistant.components.recorder.db_schema import States
+from homeassistant.components.sensor import SensorStateClass
 from homeassistant.helpers.recorder import session_scope
 import yaml
 
@@ -77,6 +78,7 @@ def perform_import(
     recorder_instance,
     entity_id: str,
     entity_attributes: dict[str, Any],
+    state_class: SensorStateClass,
     samples: tuple[Sample, ...],
     mode: ImportMode,
     chunk_size: int,
@@ -88,7 +90,7 @@ def perform_import(
     # prepare the result object and a mutable copy of the samples to import
     result = ImportResult(
         entity_id=entity_id,
-        mode=mode,
+        mode=mode.value,
         states_in_file=len(samples),
     )
     samples_to_import: tuple[Sample, ...] = samples
@@ -247,6 +249,7 @@ def perform_import(
         rebuild_result = rebuild_statistics_with_commit(
             session,
             mode,
+            state_class=state_class,
             rebuild_start_timestamp=result.oldest_imported_timestamp,
             rebuild_end_timestamp=rebuild_end_timestamp,
             states_metadata_id=states_metadata_id,

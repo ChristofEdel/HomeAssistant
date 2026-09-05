@@ -56,6 +56,7 @@ class ImportRecorderTask(RecorderTask):
 
     entity_id: str
     entity_attributes: dict[str, Any]
+    state_class: SensorStateClass
     samples: tuple[Sample, ...]
     mode: ImportMode
     chunk_size: int
@@ -67,6 +68,7 @@ class ImportRecorderTask(RecorderTask):
                 instance,
                 self.entity_id,
                 self.entity_attributes,
+                self.state_class,
                 self.samples,
                 self.mode,
                 self.chunk_size,
@@ -139,10 +141,15 @@ async def async_import_history(
         raise ServiceValidationError(f"Entity does not exist: {entity_id}")
     if entity_state.domain != "sensor":
         raise ServiceValidationError(f"Entity must be a sensor: {entity_id}")
-    if entity_state.attributes.get("state_class") != SensorStateClass.MEASUREMENT:
+    state_class_value = entity_state.attributes.get("state_class")
+    if state_class_value not in (
+        SensorStateClass.MEASUREMENT,
+        SensorStateClass.TOTAL_INCREASING,
+    ):
         raise ServiceValidationError(
-            f"Entity must have state_class measurement: {entity_id}"
+            f"Entity must have state_class measurement or total_increasing: {entity_id}"
         )
+    state_class = SensorStateClass(state_class_value)
 
     # Read and validate the complete CSV before queueing any database work.
     file_path = Path(hass.config.config_dir) / file_name
@@ -160,6 +167,7 @@ async def async_import_history(
         ImportRecorderTask(
             entity_id         = entity_id,
             entity_attributes = dict(entity_state.attributes),
+            state_class       = state_class,
             samples           = samples,
             mode              = mode,
             chunk_size        = chunk_size,

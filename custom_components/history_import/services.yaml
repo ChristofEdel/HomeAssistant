@@ -46,11 +46,11 @@ import:
 
 recalculate:
   name: Recalculate Sensor Statistics
-  description: Delete all existing short and long term statistics and recalculate them from the complete Recorder state history. Only measurement sensors are supported.
+  description: Delete all existing short and long term statistics and recalculate them from the complete Recorder state history. Supports measurement and total_increasing sensors.
   fields:
     entity:
       name: Sensor
-      description: Measurement sensor whose statistics are to be recalculated.
+      description: Measurement or total_increasing sensor whose statistics are to be recalculated.
       required: true
       selector:
         entity:
