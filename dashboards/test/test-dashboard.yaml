@@ -2,5 +2,5 @@
 apexcharts_card_templates: !include ../apexcharts-card-templates.yaml
 
 views:
-  - !include test-view-history.yaml
+  - !include test-view-aircon.yaml
   
