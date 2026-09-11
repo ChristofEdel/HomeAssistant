@@ -73,3 +73,11 @@ utility_meter:
     source: sensor.generic_rainfall_cumulative
     cycle: yearly
     periodically_resetting: false
+
+recorder:
+  exclude:
+    entity_globs:
+      - "*.outdoor_iss_wind*"
+      - "*.outdoor_iss_*rain*"
+    entities:
+      - sensor.davis_weatherlink_last_update

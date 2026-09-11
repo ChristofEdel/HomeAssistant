@@ -709,3 +709,13 @@ utility_meter:
     source: sensor.garden_sprinklers_all_lawns_water_total
     cycle: daily
     periodically_resetting: false
+
+recorder:
+  exclude:
+    entities:
+      - sensor.garden_sprinklers_current_time
+
+history_manager:
+  short_retention:
+    entities:
+      - sensor.garden_sprinklers_current_draw

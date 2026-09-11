@@ -245,14 +245,6 @@ template:
           )
         }}
 
-utility_meter:
-  solar_production_today_victron:
-    source: sensor.solar_energy_total_victron
-    name: Solar Production Today (Victron)
-    unique_id: solar_production_today_victron
-    cycle: daily
-    periodically_resetting: false
-
 input_datetime:
   energy_chart_day:
     name: Day for Energy Chart
@@ -277,3 +269,25 @@ recorder:
       - sensor.victron_real_time_solar_power
       - sensor.victron_real_time_power_untracked
       - sensor.victron_real_time_battery_power
+      - sensor.victron_real_time_battery_power_inv
+      - sensor.victron_real_time_power_aicon
+      - input_datetime.energy_chart_day
+      - input_datetime.energy_chart_range_start
+      - input_datetime.energy_chart_range_end
+    entity_globs:
+      - "sensor.victron_multiplus_ii_0_line_*"    # duplicate 'device 0' sensors
+
+history_manager:
+  short_retention:
+    entities:
+      - sensor.gx_device_gx_system_heartbeat
+      - automation.victron_mqtt_keep_alive
+    entity_globs:
+      - "*.victron_multiplus_ii*"
+      - "*.electricity_victron_multiplus_ii*"
+      - "*.victron_gx*"
+      - "*.electricity_victron_gx*"
+      - "*.pylontech_battery*"
+      - "*.electricity_pylontech_battery*"
+      - "*.pv_inverter_on_output*"
+      - "button.gx_device*"

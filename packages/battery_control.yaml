@@ -114,6 +114,11 @@ sensor:
     max_sub_interval:
       seconds: 10
 
+recorder:
+  exclude:
+    entities:
+      - sensor.battery_control_battery_energy
+
 template:
   - sensor:
       # A sensor that reflects the current battery charge limit setting, 
@@ -702,3 +707,10 @@ automation:
         state: "on"
 
       - action: script.battery_control_apply
+
+history_manager:
+  short_retention:
+    entities:
+      - automation.battery_control_apply_control_settings_to_victron
+      - automation.battery_control_initialise
+      - script.battery_control_apply

@@ -68,3 +68,10 @@ logger:
       - "We found a custom integration .* which has not been tested by Home Assistant.*"
   logs:
     custom_components.history_import: info
+    custom_components.history_manager: info
+    homeassistant.components.recorder.backup: info
+    homeassistant.components.recorder.core: info
+
+history_manager:
+  short_retention:
+    purge_keep_days: 14
