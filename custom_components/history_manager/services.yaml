@@ -1,0 +1,9 @@
+reload:
+  name: Reload
+  description: Reload History Manager YAML configuration.
+purge_short_entities:
+  name: Purge short-retention entities
+  description: Purges short-retention entities according to the configured retention period.
+purge_unrecorded_entities:
+  name: Purge unrecorded entities
+  description: Purges unrecorded entities (deletes all their recorded history)

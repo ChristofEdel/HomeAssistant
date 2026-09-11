@@ -1,0 +1,415 @@
+
+/**************************************************************************************************
+**
+** History Manager Card CSS
+**
+**************************************************************************************************/
+
+
+/**************************************************************************************************
+** Overall card styles
+**************************************************************************************************/
+
+:host {
+    display: block;
+    padding: 16px;
+    box-sizing: border-box;
+    color: var(--primary-text-color);
+}
+
+ha-card {
+    background: none;
+    backdrop-filter: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+.wrap {
+    max-width: 1500px;
+    margin: 0 auto;
+}
+
+.toolbar,
+.card {
+    background: var(--card-background-color);
+    padding: 16px;
+    box-shadow: var(--ha-card-box-shadow, none);
+    margin-bottom: 16px;
+    border-radius: 0 12px 12px 12px;
+    border: 1px solid var(--divider-color);
+
+    position: relative;
+    z-index: 1;
+}
+
+.toolbar-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/**************************************************************************************************
+** Title and icon styles
+**************************************************************************************************/
+
+.title-row {
+    display: flex;
+    align-items: center;
+    gap: var(--ha-space-2);
+    color: var(--ha-heading-card-title-color, var(--primary-text-color));
+    font-size: var(--ha-heading-card-title-font-size, var(--ha-font-size-l));
+    font-weight: var(
+        --ha-heading-card-title-font-weight,
+        var(--ha-font-weight-normal)
+    );
+    line-height: var(
+        --ha-heading-card-title-line-height,
+        var(--ha-line-height-normal)
+    );
+    letter-spacing: 0.1px;
+}
+
+.title-row ha-icon {
+    --mdc-icon-size: 18px;
+    flex: none;
+}
+
+.title {
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/**************************************************************************************************
+** Tabs 
+**************************************************************************************************/
+.tabs {
+    display: inline-grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    width: max-content;
+
+    position: relative;
+    z-index: 2;
+    margin-bottom: -1px;
+}
+
+.tab {
+    border: 1px solid var(--divider-color);
+    border-right: none;
+    background: var(--card-background-color);
+    color: var(--ha-heading-card-subtitle-color, var(--secondary-text-color));
+
+    font-size: var(
+        --ha-heading-card-subtitle-font-size,
+        var(--ha-font-size-m)
+    );
+    font-weight: var(
+        --ha-heading-card-subtitle-font-weight,
+        var(--ha-font-weight-medium)
+    );
+    line-height: var(
+        --ha-heading-card-subtitle-line-height,
+        var(--ha-line-height-condensed)
+    );
+
+    padding: var(--ha-space-2) var(--ha-space-3);
+    cursor: pointer;
+    white-space: nowrap;
+    text-align: center;
+
+    border-radius: 12px 12px 0 0;
+}
+
+.tab:last-child {
+    border-right: 1px solid var(--divider-color);
+}
+
+.tab:hover {
+    color: var(--primary-text-color);
+}
+
+.tab.active {
+    font-weight: bold;
+    color: var(--primary-text-color);
+    border-bottom-color: var(--card-background-color);
+    position: relative;
+    z-index: 3;
+}
+
+/**************************************************************************************************
+** Refresh button
+**************************************************************************************************/
+
+.action-button {
+    border: none;
+    background: none;
+    color: var(--primary-text-color);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    padding: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-button ha-icon {
+    --mdc-icon-size: 24px;
+}
+
+.action-button[disabled] {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/**************************************************************************************************
+** Statistics box grid
+**************************************************************************************************/
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.stat-box {
+    padding: 6px;
+    border-radius: 10px;
+    background: var(--primary-background-color);
+    border: 1px solid var(--divider-color);
+}
+
+.stat-label {
+    color: var(--secondary-text-color);
+    font-size: 0.9rem;
+    margin-bottom: 3px;
+}
+
+.stat-value {
+    font-size: 1.15rem;
+    font-weight: 600;
+    word-break: break-word;
+}
+
+/**************************************************************************************************
+** Tables - Common
+**************************************************************************************************/
+.table-container {
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 24px;
+}
+
+.table-container-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.table-container-header h2 {
+    margin: 0 0 12px;
+}
+
+.table-container-header button {
+    padding: 0.5em
+}
+
+.table-container-data {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/**************************************************************************************************
+** Tables - Database statistics
+**************************************************************************************************/
+
+.db-table,
+.device-table {
+    width: auto;
+    border-collapse: collapse;
+}
+
+.db-table th,
+.device-table th {
+    text-align: center;
+    vertical-align: middle;
+    font-size: 0.95rem;
+    background: var(--divider-color);
+    background-clip: padding-box;
+    border-top: none;
+    border-bottom: none;
+    padding-left: 2px;
+    padding-right: 2px;
+}
+
+.db-table th:first-child,
+.device-table th:first-child {
+    text-align: left;
+}
+
+.db-table thead th,
+.device-table thead th {
+    color: var(--secondary-text-color);
+    font-weight: 500;
+}
+
+.db-table .right,
+.device-table .right {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.db-table code {
+    font-family: var(--code-font-family, monospace);
+    font-size: 0.9rem;
+}
+
+.db-table td.gap-before,
+.db-table th.gap-before,
+.device-table td.gap-before,
+.device-table th.gap-before {
+    border-left: 0.5em solid transparent;
+}
+
+.db-table td,
+.device-table td {
+    border-bottom: 1px solid var(--divider-color) 
+}
+
+.db-table td.no-border,
+.device-table td.no-border {
+    border-bottom: none
+}
+
+.db-table tr:last-child td,
+.device-table tr:last-child td { 
+    border-bottom: 3px solid var(--divider-color) 
+}
+
+/**************************************************************************************************
+** Tables - Devices
+**************************************************************************************************/
+
+.device-row {
+    font-weight: 500;
+}
+
+.name-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.primary-name {
+    color: var(--primary-text-color);
+}
+
+.secondary-name {
+    color: var(--secondary-text-color);
+    font-size: 0.85rem;
+    margin-top: -4px;
+    font-weight: normal;
+}
+
+.caret {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    border: none;
+    background: transparent;
+    color: var(--secondary-text-color);
+    cursor: pointer;
+    border-radius: 8px;
+}
+
+.caret:hover {
+    background: var(--secondary-background-color);
+}
+
+.caret-icon {
+    display: inline-block;
+    transition: transform 0.2s ease;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.caret-icon.expanded {
+    transform: rotate(90deg);
+}
+
+/**************************************************************************************************
+** Recorder inclusion
+**************************************************************************************************/
+
+.entity-recorder-counts {
+  display: flex;
+  min-width: 4em;
+}
+
+.entity-recorder-counts > div {
+  flex: 1 1 0;
+  text-align: center;
+  padding: 0.1em 0.1em 0 0.1em;
+  height: 1.2em;
+  line-height: 1.2em;
+  white-space: nowrap;
+  position: relative;
+  top: -0.1em;
+}
+
+.entity-recorder-state {
+  flex: 1 1 0;
+  text-align: center;
+  padding: 0.1em 0.1em 0 0.1em;
+  height: 1.2em;
+  line-height: 1.2em;
+  white-space: nowrap;
+  position: relative;
+  top: -0.1em;
+}
+
+.entity-recorder-state.long {
+  display: none;
+}
+
+.entity-recorder-counts .long {
+  background: green;
+  color: white;
+}
+
+
+.entity-recorder-state.short,
+.entity-recorder-counts .short {
+  background: #ffbf00; /* amber */
+  color: black;
+}
+
+.entity-recorder-state.off,
+.entity-recorder-counts .off {
+  background: black;
+  color: white;
+}
+
+
+/**************************************************************************************************
+** Other stuff
+**************************************************************************************************/
+
+.empty {
+    color: var(--secondary-text-color);
+}
+
+.message {
+    margin-top: 12px;
+    color: var(--secondary-text-color);
+}
