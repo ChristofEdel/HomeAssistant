@@ -431,6 +431,102 @@ sections:
           type: grid
     column_span: 2
   - type: grid
+    column_span: 2
+    cards:
+
+      - type: heading
+        icon: mdi:weather-rainy
+        heading: Cumulative
+        heading_style: title
+
+      - type: custom:apexcharts-card
+        graph_span: 24h
+        cache: false
+        header:
+          show: true
+          title: Rainfall
+        series:
+          - entity: sensor.generic_rainfall_cumulative
+            name: Rainfall
+            type: line
+            stroke_width: 2
+            color: var(--color-1)
+            group_by:
+              duration: 5min
+              func: avg
+        apex_config:
+          legend:
+            show: false
+          chart:
+            events:
+              updated: |
+                EVAL:function(chartContext, config) {
+                  if (chartContext.__rainfall_rebased) return;
+
+                  const data = config.config.series?.[0]?.data;
+                  if (!data?.length) return;
+
+                  const first = data[0];
+                  const base = Number(Array.isArray(first) ? first[1] : first.y);
+
+                  const rebased = data.map(point => {
+                    if (Array.isArray(point)) {
+                      return [point[0], Number(point[1]) - base];
+                    }
+
+                    return {
+                      ...point,
+                      y: Number(point.y) - base
+                    };
+                  });
+
+                  chartContext.__rainfall_rebased = true;
+
+                  chartContext.updateSeries([
+                    {
+                      ...config.config.series[0],
+                      data: rebased
+                    }
+                  ], false);
+                }
+        config_templates:
+          - standard_chart
+        section_mode: true
+        grid_options:
+          rows: 3
+          columns: 12
+      - type: custom:apexcharts-card
+        graph_span: 7d
+        span:
+          start: day
+          offset: -6d
+        header:
+          show: true
+          title: Daily Rainfall
+        series:
+          - entity: sensor.generic_rainfall_daily
+            name: Daily Rainfall
+            type: column
+            color: var(--color-1)
+            group_by:
+              duration: 1d
+              func: max
+              fill: 'null'
+        apex_config:
+          xaxis:
+            labels:
+              hideOverlappingLabels: false
+              showDuplicates: true
+              datetimeFormatter:
+                day: ddd
+        config_templates:
+          - standard_chart
+        section_mode: true
+        grid_options:
+          rows: 3
+          columns: 12
+          type: grid
+  - type: grid
     cards:
       - type: custom:opensprinkler-card
         device: 900b4675bae7a67a3919e4540a7cab4a
