@@ -136,49 +136,90 @@ sections:
             left: 40%
           - type: state-icon
             entity: light.mezzanine_b
-            left: 15%
             top: 80%
+            left: 15%
+          - type: state-icon
+            entity: climate.ac_mezzanine
+            top: 67%
+            left: 5%
+            hold_action: 
+              action: none
+            tap_action: 
+              action: fire-dom-event
+              popup_card:
+                title: Mezzanine A/C
+                content:
+                  type: custom:aircon-control-card
+                  entity: climate.ac_mezzanine
+                  fan_entity: fan.ac_mezzanine
+                  power_entity: switch.ac_mezzanine_power
           - type: state-icon
             entity: light.mezzanine_c
-            left: 15%
             top: 60%
+            left: 15%
           - type: state-icon
             entity: light.mezzanine_d
-            left: 40%
             top: 60%
+            left: 40%
           - type: state-icon
             entity: light.ground_floor_staircase
-            left: 55.5%
             top: 57%
+            left: 55.5%
           - type: state-icon
             entity: light.1st_floor_landing
+            top: 43%
             left: 46%
-            top: 43%
           - type: state-icon
             entity: light.1st_floor_landing
-            left: 66%
             top: 43%
+            left: 66%
+          - type: state-icon
+            entity: climate.ac_cinema
+            top: 27%
+            left: 80%
+            hold_action: 
+              action: none
+            tap_action:
+              action: fire-dom-event
+              popup_card:
+                title: Cinema A/C
+                content:
+                  type: custom:aircon-control-card
+                  entity: climate.ac_cinema
           - type: state-icon
             entity: light.1st_floor_cinema
-            left: 80%
             top: 16%
+            left: 80%
           - type: state-icon
             entity: light.1st_floor_hallway_2
-            left: 66%
             top: 60%
+            left: 66%
           - type: state-icon
             entity: light.1st_floor_dressing
-            left: 85%
             top: 39%
+            left: 85%
           - type: state-icon
             entity: light.1st_floor_bathroom
-            left: 80%
             top: 58%
+            left: 80%
           - type: state-icon
             entity: switch.1st_floor_bathroom_fan
-            left: 90%
             top: 58%
+            left: 90%
+          - type: state-icon
+            entity: climate.ac_bedroom
+            top: 72%
+            left: 80%
+            hold_action: 
+              action: none
+            tap_action:
+              action: fire-dom-event
+              popup_card:
+                title: Bedroom A/C
+                content:
+                  type: custom:aircon-control-card
+                  entity: climate.ac_bedroom
           - type: state-icon
             entity: light.1st_floor_bedroom
-            left: 80%
             top: 82%
+            left: 80%
