@@ -1,0 +1,174 @@
+
+/* The overall card ******************************************************************************/
+:host {
+  display: block;
+}
+
+.aircon-control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.thermostat-host {
+  display: block;
+}
+
+.controls-host {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* The segmented radio buttons at the bottom of the card *****************************************/
+
+.segmented-row {
+  display: grid;
+  grid-template-columns: repeat(var(--segment-count), minmax(0, 1fr));
+  gap: 0;
+}
+
+.segment {
+  min-width: 0;
+  padding: 10px 0px;
+  margin: 0;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  text-align: center;
+  cursor: pointer;
+
+  -webkit-tap-highlight-color: transparent;
+}
+
+.segment-icon {
+  width: 36px;
+  height: 36px;
+}
+
+/* colours and fonts */
+.segment {
+  font: inherit;
+  line-height: 1.2;
+  background: var(--card-background-color);
+  color: var(--primary-text-color);
+}
+
+.segment.selected {
+  background:
+    color-mix(
+      in srgb,
+      var(--primary-color) 18%,
+      var(--card-background-color)
+    );
+  color: var(--primary-color);
+}
+
+.segment.selected .segment-icon {
+  color: var(--primary-color);
+}
+
+/* borders between all segments, rounded corners at the left and right of whole row */
+
+.segment {
+  border: 1px solid var(--divider-color);
+  border-radius: 0;
+  box-sizing: border-box;
+}
+
+.segment-middle, .segment-right { 
+  border-left: 0;
+}
+
+.segment-left {
+  border-radius: 12px 0 0 12px;
+}
+
+.segment-right {
+  border-radius: 0 12px 12px 0;
+}
+
+.segment-label {
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.segment.no-icon {
+  gap: 0;
+}
+
+.segment:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: -2px;
+}
+
+.segment:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+
+/* Increasing fan-speed 'volume triangle' *****************************************/
+
+.fan-speed-row {
+  position: relative;
+  overflow: hidden;
+  background: var(--card-background-color);
+}
+
+.fan-speed-row::before {
+  content: "";
+  position: absolute;
+
+  left: calc(100% / 6);
+  right: 1px;
+  top: 10px;
+  bottom: 10px;
+
+  background:
+    color-mix(
+      in srgb,
+      var(--primary-text-color) 25%,
+      transparent
+    );
+
+  clip-path: polygon(
+    0 100%,
+    100% 0,
+    100% 100%
+  );
+
+  pointer-events: none;
+}
+
+/* Allow the row-level triangle to show through the buttons. */
+.fan-speed-row .segment {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+/* Keep selected behaviour as before. */
+.fan-speed-row .segment.selected {
+  background:
+    color-mix(
+      in srgb,
+      var(--primary-color) 18%,
+      transparent
+    );
+}
+
+
+
+.error {
+  padding: 16px;
+  color: var(--error-color);
+}
+
+
