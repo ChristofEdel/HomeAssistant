@@ -6,6 +6,7 @@ class FloorplanCard extends HTMLElement {
         // Create the shadow DOM for the card
         this.attachShadow({ mode: "open" });
 
+        this._config = [];
         this._rendered = false;
         this._holdTimers = new Set();
     }
@@ -40,7 +41,7 @@ class FloorplanCard extends HTMLElement {
         }
 
         // Store the configuration
-        this.config = config;
+        this._config = config;
 
         // Render if necessary
         this._rendered = false;
@@ -80,7 +81,7 @@ class FloorplanCard extends HTMLElement {
      * One unit is approximately 50 px.
      */
     getCardSize() {
-        const size = Number(this.config?.card_size);
+        const size = Number(this._config?.card_size);
 
         return Number.isFinite(size) && size > 0
             ? size
@@ -96,7 +97,7 @@ class FloorplanCard extends HTMLElement {
      * Rows are omitted so the SVG determines the card height.
      */
     getGridOptions() {
-        const options = this.config?.grid_defaults ?? {};
+        const options = this._config?.grid_defaults ?? {};
         return {
             columns:     options.columns     ?? 6,
             rows:        options.rows,
@@ -127,12 +128,15 @@ class FloorplanCard extends HTMLElement {
         );
     }
 
-    runAction(item, actionType) {
+    runAction(item, actionType /* hold or tap */) {
         const defaultAction =
             actionType === "hold" ? "more-info" : "toggle";
 
-        const action =
-            item[`${actionType}_action`]?.action || defaultAction;
+        const actionConfig = item[`${actionType}_action`] || {
+            action: defaultAction,
+        };
+
+        const action = actionConfig.action || defaultAction;
 
         switch (action) {
             case "toggle":
@@ -142,6 +146,17 @@ class FloorplanCard extends HTMLElement {
             case "more-info":
                 this.showMoreInfo(item.entity);
                 break;
+
+            case "fire-dom-event":
+                this.dispatchEvent(
+                    new CustomEvent("ll-custom", {
+                        detail: actionConfig,
+                        bubbles: true,
+                        composed: true,
+                    })
+                );
+                break;
+
 
             case "none":
                 break;
@@ -154,18 +169,19 @@ class FloorplanCard extends HTMLElement {
     }
 
     render() {
-        if (!this.config || !this._hass || !this.isConnected) {
+        if (!this._config || !this._hass || !this.isConnected) {
             return;
         }
 
         this.clearHoldTimers();
 
-        const image    = this.config.image || "/local/floorplan.svg";
-        const minWidth = this.config.min_width || "100px";
-        const maxWidth = this.config.max_width || "1600px";
-        const showGrid = this.config.show_grid === true;
-        const elements = this.config.elements || [];
+        const image    = this._config.image || "/local/floorplan.svg";
+        const minWidth = this._config.min_width || "100px";
+        const maxWidth = this._config.max_width || "1600px";
+        const showGrid = this._config.show_grid === true;
+        const elements = this._config.elements || [];
 
+        // HTML for all element icons
         const iconHtml = elements
             .map(
                 (_, index) => `
@@ -201,11 +217,11 @@ class FloorplanCard extends HTMLElement {
         // HTML for the overall card
         this.shadowRoot.innerHTML = `
             <link rel="stylesheet" href="/local/floorplan-card.css?v=3" />
-            <ha-card class="${this.config.transparent === true
+            <ha-card class="${this._config.transparent === true
                 ? "transparent"
                 : ""
             }">
-            ${this.config.title
+            ${this._config.title
                 ? '<div class="card-header"></div>'
                 : ""
             }
@@ -227,20 +243,20 @@ class FloorplanCard extends HTMLElement {
         floorplanImage.src = image;
 
         const header = this.shadowRoot.querySelector(".card-header");
-        if (header) header.textContent = this.config.title;
+        if (header) header.textContent = this._config.title;
 
         // Same for the position and size of each element
         elements.forEach((item, index) => {
-            const element =
+            const htmlElement =
                 this.shadowRoot.querySelector(
                     `[data-index="${index}"]`
                 );
 
-            element.style.left = item.left;
-            element.style.top = item.top;
-            element.style.width = item.size || this.config?.icon_size || "auto";
+            htmlElement.style.left = item.left;
+            htmlElement.style.top = item.top;
+            htmlElement.style.width = item.size || this._config?.icon_size || "auto";
 
-            this.attachActions(element, item);
+            this.attachActions(htmlElement, item);
         });
 
         this._rendered = true;
@@ -253,17 +269,19 @@ class FloorplanCard extends HTMLElement {
         }
 
         const elements =
-            this.config.elements || [];
+            this._config.elements || [];
 
         elements.forEach((item, index) => {
-            const element =
+            const htmlElement =
                 this.shadowRoot.querySelector(
                     `[data-index="${index}"]`
                 );
 
-            if (!element) {
+            if (!htmlElement) {
                 return;
             }
+
+            const isClimate = item.entity.startsWith("climate.");
 
             const stateObj =
                 this._hass.states[item.entity];
@@ -277,7 +295,8 @@ class FloorplanCard extends HTMLElement {
                 state === "unknown";
 
             const isOn =
-                state === "on";
+                state === "on"
+                || (isClimate && state !== "off");
 
             const icon =
                 item.icon ||
@@ -291,36 +310,36 @@ class FloorplanCard extends HTMLElement {
             const stateText =
                 state || "unavailable";
 
-            element.classList.toggle(
+            htmlElement.classList.toggle(
                 "on",
                 isOn && !unavailable
             );
 
-            element.classList.toggle(
+            htmlElement.classList.toggle(
                 "off",
                 !isOn && !unavailable
             );
 
-            element.classList.toggle(
+            htmlElement.classList.toggle(
                 "unavailable",
                 unavailable
             );
 
-            element.title =
+            htmlElement.title =
                 `${name}: ${stateText}`;
 
-            element.setAttribute(
+            htmlElement.setAttribute(
                 "aria-label",
                 `${name}: ${stateText}`
             );
 
-            element
+            htmlElement
                 .querySelector("ha-icon")
                 .setAttribute("icon", icon);
         });
     }
 
-    attachActions(element, item) {
+    attachActions(htmlElement, item) {
         let holdTimer = null;
         let held = false;
 
@@ -332,7 +351,7 @@ class FloorplanCard extends HTMLElement {
             }
         };
 
-        element.addEventListener(
+        htmlElement.addEventListener(
             "pointerdown",
             (event) => {
                 event.preventDefault();
@@ -351,7 +370,7 @@ class FloorplanCard extends HTMLElement {
             }
         );
 
-        element.addEventListener(
+        htmlElement.addEventListener(
             "pointerup",
             (event) => {
                 event.preventDefault();
@@ -363,22 +382,22 @@ class FloorplanCard extends HTMLElement {
             }
         );
 
-        element.addEventListener(
+        htmlElement.addEventListener(
             "pointerleave",
             clearHoldTimer
         );
 
-        element.addEventListener(
+        htmlElement.addEventListener(
             "pointercancel",
             clearHoldTimer
         );
 
-        element.addEventListener(
+        htmlElement.addEventListener(
             "contextmenu",
             (event) => event.preventDefault()
         );
 
-        element.addEventListener(
+        htmlElement.addEventListener(
             "keydown",
             (event) => {
                 if (
