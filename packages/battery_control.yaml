@@ -119,6 +119,11 @@ recorder:
     entities:
       - sensor.battery_control_battery_energy
 
+influxdb:
+  exclude:
+    entities:
+      - sensor.battery_control_battery_energy
+
 template:
   - sensor:
       # A sensor that reflects the current battery charge limit setting, 
@@ -146,7 +151,11 @@ template:
         attributes:
           reason: >
             {% if is_state('binary_sensor.battery_management_full_charge_required', 'on') %}
-              Battery Management
+              {% if is_state('binary_sensor.battery_management_forced_full_charge_required', 'on') %}
+                Battery Health - overnight
+              {% else %}
+                Battery Health
+              {% endif %}
             {% elif states('input_number.battery_control_charge_limit_manual') | float(100) < 100 %}
               Manual
             {% else %}
@@ -167,23 +176,38 @@ template:
               is_state('binary_sensor.octopus_energy_electricity_19l3390321_1200022336139_off_peak', 'on')
               and (states('input_number.battery_control_charge_target_off_peak') | float(0)) > 0
             )
+            or
+            (
+              is_state('binary_sensor.octopus_energy_electricity_19l3390321_1200022336139_off_peak', 'on')
+              and (states('binary_sensor.battery_management_forced_full_charge_required') | float(0)) > 0
+            )
           }}
         state: >
           {% set manual = states('input_number.battery_control_charge_target_manual') | float(0) %}
+          {% set forced = is_state('binary_sensor.battery_management_forced_full_charge_required', 'on') %}
           {% if manual > 0 %}
             {{ manual }}
           {% elif is_state('binary_sensor.octopus_energy_electricity_19l3390321_1200022336139_off_peak', 'on') %}
-            {{ states('input_number.battery_control_charge_target_off_peak') | float }}
+            {% if forced %}
+              {{ 100 }}
+            {% else %}
+              {{ states('input_number.battery_control_charge_target_off_peak') | float }}
+            {% endif %}
           {% else %}
             {{ 0 }}
           {% endif %}
         attributes:
           reason: >
             {% set manual = states('input_number.battery_control_charge_target_manual') | float(0) %}
+            {% set forced = is_state('binary_sensor.battery_management_forced_full_charge_required', 'on') %}
             {% if manual > 0 %}
               Manual
             {% elif is_state('binary_sensor.octopus_energy_electricity_19l3390321_1200022336139_off_peak', 'on') %}
-              Off-Peak Charge Target
+              {% if forced %}
+                Battery Health
+              {% else %}
+                Off-Peak Target
+              {% endif %}
             {% else %}
               {{ none }}
             {% endif %}
@@ -710,6 +734,13 @@ automation:
 
 history_manager:
   short_retention:
+    entities:
+      - automation.battery_control_apply_control_settings_to_victron
+      - automation.battery_control_initialise
+      - script.battery_control_apply
+
+influxdb:
+  exclude:
     entities:
       - automation.battery_control_apply_control_settings_to_victron
       - automation.battery_control_initialise
