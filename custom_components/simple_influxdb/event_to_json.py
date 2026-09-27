@@ -4,7 +4,7 @@ import copy
 from collections.abc import Callable
 from typing import Any
 
-from homeassistant.components.recorder import is_entity_recorded
+from homeassistant.components.recorder.entity_options import is_entity_recorded
 from homeassistant.const import CONF_UNIT_OF_MEASUREMENT
 from homeassistant.core import Event, State, HomeAssistant
 from homeassistant.helpers.entityfilter import (convert_include_exclude_filter)

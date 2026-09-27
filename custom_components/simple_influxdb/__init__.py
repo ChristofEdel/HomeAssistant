@@ -18,10 +18,12 @@ from .const import (
     CONF_INCLUDE,
     CONF_EXCLUDE,
     CONF_EXCLUDE_UNRECORDED,
+    SERVICE_PUSH_TO_INFLUXDB,
 )
 from .influx_thread import InfluxThread
 from .influx_connection import get_influx_connection
 from .event_to_json import get_event_to_json
+from .push import PUSH_TO_INFLUXDB_SCHEMA, async_push_to_influxdb
 
 #--------------------------------------------------------------------------------------------------
 # region Configuration Schema
@@ -50,6 +52,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             await hass.config_entries.async_reload(entry.entry_id)
 
     async_register_admin_service(hass, DOMAIN, SERVICE_RELOAD, async_reload)
+    async_register_admin_service(
+        hass, DOMAIN, SERVICE_PUSH_TO_INFLUXDB, async_push_to_influxdb,
+        schema=PUSH_TO_INFLUXDB_SCHEMA,
+    )
     return True
 
 
@@ -91,6 +97,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: InfluxDBConfigEntry) -> 
     await hass.async_add_executor_job(influx_thread.start)
 
     entry.runtime_data = influx_thread
+    hass.data[DOMAIN] = config
 
     return True
 
@@ -101,6 +108,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: InfluxDBConfigEntry) ->
 
     # Run shutdown in the executor so the event loop isn't blocked
     await hass.async_add_executor_job(influx_thread.shutdown)
+    hass.data.pop(DOMAIN, None)
 
     return True
 

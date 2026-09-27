@@ -1,0 +1,35 @@
+push_to_influxdb:
+  fields:
+    entities:
+      selector:
+        entity:
+          multiple: true
+    entity_globs:
+      selector:
+        text:
+          multiple: true
+    from:
+      selector:
+        datetime: {}
+    back_until:
+      selector:
+        datetime: {}
+    from_days:
+      selector:
+        number:
+          min: 0
+          step: 1
+          mode: box
+    back_until_days:
+      selector:
+        number:
+          min: 0
+          step: 1
+          mode: box
+    chunk_size:
+      required: true
+      selector:
+        number:
+          min: 1
+          step: 1
+          mode: box

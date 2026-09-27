@@ -1,6 +1,7 @@
 
 
 DOMAIN = "simple_influxdb"
+SERVICE_PUSH_TO_INFLUXDB = "push_to_influxdb"
 
 
 BATCH_BUFFER_SIZE = 100             # How many updates we can buffer together in a single

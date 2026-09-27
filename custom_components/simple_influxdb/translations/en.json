@@ -45,5 +45,41 @@
         "title": "InfluxDB configuration"
       }
     }
+  },
+  "services": {
+    "push_to_influxdb": {
+      "name": "Push recorder history to InfluxDB",
+      "description": "Select recorder history for a future copy to InfluxDB. Currently logs the selected entities and arguments only.",
+      "fields": {
+        "entities": {
+          "name": "Entities",
+          "description": "Entity IDs to process, including ones excluded by filters or recorder."
+        },
+        "entity_globs": {
+          "name": "Entity globs",
+          "description": "Patterns for current entities. Matches excluded by Simple InfluxDB or recorder are skipped."
+        },
+        "from": {
+          "name": "From",
+          "description": "Later end of the time range. Use with back_until."
+        },
+        "back_until": {
+          "name": "Back until",
+          "description": "Earlier end of the time range. Must be before from."
+        },
+        "from_days": {
+          "name": "From days",
+          "description": "Alternative to from. 0 ends at tomorrow's midnight; 1 ends at today's midnight."
+        },
+        "back_until_days": {
+          "name": "Back until days",
+          "description": "Alternative to back_until. 0 starts at today's midnight; 1 starts at yesterday's midnight."
+        },
+        "chunk_size": {
+          "name": "Chunk size",
+          "description": "Maximum number of history records to handle per batch when copying is implemented."
+        }
+      }
+    }
   }
 }
