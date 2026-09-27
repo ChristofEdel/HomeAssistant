@@ -17,6 +17,21 @@ notify:
 recorder:
   purge_keep_days: 365
 
+simple_influxdb:
+  max_retries: 3
+  include:
+    domains:
+      - sensor
+      - binary_sensor
+      - climate
+      - cover
+      - fan
+      - light
+      - switch
+      - button
+      - number
+      - weather
+
 # Load frontend themes from the themes folder
 frontend:
   themes: !include_dir_merge_named themes

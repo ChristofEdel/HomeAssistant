@@ -1,0 +1,49 @@
+{
+  "common": {
+    "ssl_ca_cert": "SSL CA certificate (Optional)"
+  },
+  "config": {
+    "abort": {
+      "reconfigure_successful": "Reconfiguration successful"
+    },
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid authentication",
+      "invalid_config": "Invalid organization, bucket or token",
+      "invalid_database": "Invalid database",
+      "ssl_error": "SSL certificate error",
+      "unknown": "Unexpected error"
+    },
+    "step": {
+      "user": {
+        "data": {
+          "bucket": "Bucket",
+          "ssl_ca_cert": "SSL CA certificate (Optional)",
+          "token": "API token",
+          "url": "URL",
+          "verify_ssl": "Verify SSL certificate"
+        },
+        "data_description": {
+          "bucket": "The name of the bucket.",
+          "ssl_ca_cert": "Path to the SSL certificate"
+        },
+        "title": "InfluxDB configuration"
+      },
+      "reconfigure": {
+        "data": {
+          "bucket": "Bucket",
+          "ssl_ca_cert": "SSL CA certificate (Optional)",
+          "token": "API token",
+          "url": "URL",
+          "verify_ssl": "Verify SSL certificate"
+        },
+        "data_description": {
+          "bucket": "The name of the bucket.",
+          "ssl_ca_cert": "Path to the SSL certificate"
+        },
+        "description": "Update the connection settings for your InfluxDB v2.x / v3 server.",
+        "title": "InfluxDB configuration"
+      }
+    }
+  }
+}
