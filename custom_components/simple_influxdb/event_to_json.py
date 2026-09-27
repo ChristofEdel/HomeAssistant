@@ -38,7 +38,9 @@ PROPERTY_ATTRIBUTES_BY_DOMAIN = {
     },
 }
 
-def get_event_to_json(hass: HomeAssistant, conf: dict) -> Callable[[Event], list[dict[str, Any]] | None]:
+def get_event_to_json(
+    hass: HomeAssistant, conf: dict, apply_filter: bool = True
+) -> Callable[[Event], list[dict[str, Any]] | None]:
     """Build event to json converter and add to config."""
 
 
@@ -51,9 +53,9 @@ def get_event_to_json(hass: HomeAssistant, conf: dict) -> Callable[[Event], list
 
         # get the event state, and skip filtered entities
         entity_id = event.data["entity_id"]
-        if not entity_filter(entity_id):
+        if apply_filter and not entity_filter(entity_id):
             return None
-        if conf.get(CONF_EXCLUDE_UNRECORDED, True) and (
+        if apply_filter and conf.get(CONF_EXCLUDE_UNRECORDED, True) and (
             DATA_INSTANCE not in hass.data or not is_entity_recorded(hass, entity_id)
         ):
             return None

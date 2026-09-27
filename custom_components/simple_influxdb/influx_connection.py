@@ -32,7 +32,7 @@ class InfluxClient:
 
 
 def get_influx_connection(  # noqa: C901
-    conf, test_write=False, test_read=False
+    conf, test_write=False, test_read=False, synchronous=False
 ) -> InfluxClient:
     """Create the correct influx connection for the API version."""
     kwargs: dict[str, Any] = {
@@ -50,7 +50,7 @@ def get_influx_connection(  # noqa: C901
     bucket = conf.get(CONF_BUCKET)
     influx = InfluxDBClientV2(**kwargs)
     query_api = influx.query_api()
-    initial_write_mode = SYNCHRONOUS if test_write else ASYNCHRONOUS
+    initial_write_mode = SYNCHRONOUS if test_write or synchronous else ASYNCHRONOUS
     write_api = influx.write_api(write_options=initial_write_mode)
 
     def write_v2(json):
@@ -90,7 +90,8 @@ def get_influx_connection(  # noqa: C901
         # Then invalid inputs is returned. Anything else is a broken config
         with suppress(ValueError):
             write_v2(b"")
-        write_api = influx.write_api(write_options=ASYNCHRONOUS)
+        if not synchronous:
+            write_api = influx.write_api(write_options=ASYNCHRONOUS)
 
     if test_read:
         tables = query_v2("buckets()")

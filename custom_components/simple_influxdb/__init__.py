@@ -5,7 +5,7 @@ import voluptuous as vol
 
 from homeassistant import config as conf_util
 from homeassistant.const import SERVICE_RELOAD
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.config_entries import ConfigEntry
@@ -23,7 +23,12 @@ from .const import (
 from .influx_thread import InfluxThread
 from .influx_connection import get_influx_connection
 from .event_to_json import get_event_to_json
-from .push import PUSH_TO_INFLUXDB_SCHEMA, async_push_to_influxdb
+from .push import (
+    PUSH_WORKER_KEY,
+    PUSH_TO_INFLUXDB_SCHEMA,
+    PushWorker,
+    async_push_to_influxdb,
+)
 
 #--------------------------------------------------------------------------------------------------
 # region Configuration Schema
@@ -55,6 +60,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async_register_admin_service(
         hass, DOMAIN, SERVICE_PUSH_TO_INFLUXDB, async_push_to_influxdb,
         schema=PUSH_TO_INFLUXDB_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
     )
     return True
 
@@ -98,6 +104,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: InfluxDBConfigEntry) -> 
 
     entry.runtime_data = influx_thread
     hass.data[DOMAIN] = config
+    push_worker = PushWorker(hass, config)
+    push_worker.start(hass, entry)
+    hass.data[PUSH_WORKER_KEY] = push_worker
 
     return True
 
@@ -105,6 +114,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: InfluxDBConfigEntry) -> 
 async def async_unload_entry(hass: HomeAssistant, entry: InfluxDBConfigEntry) -> bool:
     """Unload a config entry."""
     influx_thread = entry.runtime_data
+
+    push_worker: PushWorker | None = hass.data.pop(PUSH_WORKER_KEY, None)
+    if push_worker is not None:
+        await push_worker.async_shutdown()
 
     # Run shutdown in the executor so the event loop isn't blocked
     await hass.async_add_executor_job(influx_thread.shutdown)

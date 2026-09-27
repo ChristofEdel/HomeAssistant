@@ -84,6 +84,7 @@ logger:
   logs:
     custom_components.history_import: info
     custom_components.history_manager: info
+    custom_components.simple_influxdb: info
     homeassistant.components.recorder.backup: info
     homeassistant.components.recorder.core: info
 
