@@ -4,17 +4,20 @@ import voluptuous as vol
 
 
 from homeassistant import config as conf_util
-from homeassistant.core import HomeAssistant
+from homeassistant.const import SERVICE_RELOAD
+from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entityfilter import INCLUDE_EXCLUDE_BASE_FILTER_SCHEMA
+from homeassistant.helpers.service import async_register_admin_service
 from .const import (
     DOMAIN,
     CONF_MAX_RETRIES,
     CONF_INCLUDE,
     CONF_EXCLUDE,
+    CONF_EXCLUDE_UNRECORDED,
 )
 from .influx_thread import InfluxThread
 from .influx_connection import get_influx_connection
@@ -28,6 +31,7 @@ CONFIG_SCHEMA = vol.Schema(
     {
         DOMAIN: INCLUDE_EXCLUDE_BASE_FILTER_SCHEMA.extend( {
             vol.Optional(CONF_MAX_RETRIES, default=0): cv.positive_int,
+            vol.Optional(CONF_EXCLUDE_UNRECORDED, default=True): cv.boolean,
         })
     },
     extra=vol.ALLOW_EXTRA,
@@ -38,8 +42,14 @@ type InfluxDBConfigEntry = ConfigEntry[InfluxThread]
 # endregion
 #--------------------------------------------------------------------------------------------------
 
-async def async_setup(_hass: HomeAssistant, config: ConfigType) -> bool:
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the InfluxDB component."""
+    async def async_reload(_call: ServiceCall) -> None:
+        """Reload config entries to apply the current YAML settings."""
+        for entry in hass.config_entries.async_entries(DOMAIN):
+            await hass.config_entries.async_reload(entry.entry_id)
+
+    async_register_admin_service(hass, DOMAIN, SERVICE_RELOAD, async_reload)
     return True
 
 
@@ -63,6 +73,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: InfluxDBConfigEntry) -> 
         CONF_MAX_RETRIES: influx_yaml.get(CONF_MAX_RETRIES, 0),
         CONF_INCLUDE: influx_yaml.get(CONF_INCLUDE, default_filter_settings),
         CONF_EXCLUDE: influx_yaml.get(CONF_EXCLUDE, default_filter_settings),
+        CONF_EXCLUDE_UNRECORDED: influx_yaml.get(CONF_EXCLUDE_UNRECORDED, True),
     }
 
     # Try to connect to the InfluxDB database.

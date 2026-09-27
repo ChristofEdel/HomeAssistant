@@ -4,9 +4,13 @@ import copy
 from collections.abc import Callable
 from typing import Any
 
+from homeassistant.components.recorder import is_entity_recorded
 from homeassistant.const import CONF_UNIT_OF_MEASUREMENT
 from homeassistant.core import Event, State, HomeAssistant
 from homeassistant.helpers.entityfilter import (convert_include_exclude_filter)
+from homeassistant.helpers.recorder import DATA_INSTANCE
+
+from .const import CONF_EXCLUDE_UNRECORDED
 
 PROPERTY_ATTRIBUTES_BY_DOMAIN = {
     "climate": {
@@ -48,6 +52,10 @@ def get_event_to_json(hass: HomeAssistant, conf: dict) -> Callable[[Event], list
         # get the event state, and skip filtered entities
         entity_id = event.data["entity_id"]
         if not entity_filter(entity_id):
+            return None
+        if conf.get(CONF_EXCLUDE_UNRECORDED, True) and (
+            DATA_INSTANCE not in hass.data or not is_entity_recorded(hass, entity_id)
+        ):
             return None
         domain, object_id = entity_id.split(".", 1)
         state: State | None = event.data.get("new_state")
