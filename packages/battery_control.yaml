@@ -119,11 +119,6 @@ recorder:
     entities:
       - sensor.battery_control_battery_energy
 
-influxdb:
-  exclude:
-    entities:
-      - sensor.battery_control_battery_energy
-
 template:
   - sensor:
       # A sensor that reflects the current battery charge limit setting, 
@@ -739,7 +734,7 @@ history_manager:
       - automation.battery_control_initialise
       - script.battery_control_apply
 
-influxdb:
+simple_influxdb:
   exclude:
     entities:
       - automation.battery_control_apply_control_settings_to_victron

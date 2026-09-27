@@ -719,3 +719,9 @@ history_manager:
   short_retention:
     entities:
       - sensor.garden_sprinklers_current_draw
+
+simple_influxdb:
+  exclude:
+    entities:
+      - sensor.garden_sprinklers_current_draw
+

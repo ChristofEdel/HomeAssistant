@@ -291,3 +291,18 @@ history_manager:
       - "*.electricity_pylontech_battery*"
       - "*.pv_inverter_on_output*"
       - "button.gx_device*"
+
+simple_influxdb:
+  exclude:
+    entities:
+      - sensor.gx_device_gx_system_heartbeat
+      - automation.victron_mqtt_keep_alive
+    entity_globs:
+      - "*.victron_multiplus_ii*"
+      - "*.electricity_victron_multiplus_ii*"
+      - "*.victron_gx*"
+      - "*.electricity_victron_gx*"
+      - "*.pylontech_battery*"
+      - "*.electricity_pylontech_battery*"
+      - "*.pv_inverter_on_output*"
+      - "button.gx_device*"

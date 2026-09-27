@@ -43,3 +43,15 @@ history_manager:
       - "*.hms_1600_4t*"
       - "*.hms_1800_4t*"
       - "*.opendtu_4b0618*"
+      
+simple_influxdb:
+  exclude:
+    entities:
+      - sensor.solar_production_today     # candidate for removal
+      - sensor.solar_energy_total         # candidate for removal
+    entity_globs:
+      - "*.hms_400_1t*"
+      - "*.hms_900_2t*"
+      - "*.hms_1600_4t*"
+      - "*.hms_1800_4t*"
+      - "*.opendtu_4b0618*"
