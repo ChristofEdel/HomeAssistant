@@ -221,8 +221,8 @@ def _state_from_row(entity_id: str, row: Any) -> State | None:
     value = fields["state"]
     last_changed = fields["last_changed_ts"]
     attributes = fields["attributes"]
-    if value == "":
-        return None  # Recorder stores removed entities as an empty state.
+    if value is None or value == "":
+        return None  # Recorder stores removed entities as NULL or, in older data, an empty state.
     updated = dt_util.utc_from_timestamp(timestamp)
     return State(
         entity_id=entity_id,
@@ -323,7 +323,7 @@ async def push_entity_to_influxdb(
 
     recorder = get_instance(hass)
     event_to_json = get_event_to_json(hass, config, False)
-    influx = await hass.async_add_executor_job(get_influx_connection, config, False, False, True)
+    influx = await hass.async_add_executor_job(get_influx_connection, config)
     rows_written = 0
     objects_written = 0
     cursor: HistoryCursor | None = None
