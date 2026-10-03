@@ -284,17 +284,17 @@ class RecorderHistoryQueryResultCard extends HTMLElement {
 
     const columns = detail.historyType === "recorder"
       ? [
-          ["Time", "last_updated_ts", "timestamp"],
+          ["Time (UTC)", "last_updated_ts", "timestamp"],
           ["State", "state", "value"],
         ]
       : [
-          ["Time", "start_ts", "timestamp"],
+          ["Time (UTC)", "start_ts", "timestamp"],
           ["Mean", "mean", "value"],
           ["Min", "min", "value"],
           ["Max", "max", "value"],
           ["State", "state", "value"],
           ["Sum", "sum", "value"],
-          ["Last Reset", "last_reset_ts", "timestamp"],
+          ["Last Reset (UTC)", "last_reset_ts", "timestamp"],
         ];
 
     for (const [label] of columns) {
@@ -367,31 +367,29 @@ class RecorderHistoryQueryResultCard extends HTMLElement {
     }
 
     const date = new Date(numeric * 1000);
-    const timeZone = this._hass?.config?.time_zone;
-
-    try {
-      const formatter = new Intl.DateTimeFormat("en-CA", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hourCycle: "h23",
-        ...(timeZone ? { timeZone } : {}),
-      });
-
-      const parts = Object.fromEntries(
-        formatter
-          .formatToParts(date)
-          .filter((part) => part.type !== "literal")
-          .map((part) => [part.type, part.value]),
-      );
-
-      return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
-    } catch (_error) {
-      return date.toLocaleString();
+    if (!Number.isFinite(date.getTime())) {
+      return String(value);
     }
+
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+      timeZone: "UTC",
+    });
+
+    const parts = Object.fromEntries(
+      formatter
+        .formatToParts(date)
+        .filter((part) => part.type !== "literal")
+        .map((part) => [part.type, part.value]),
+    );
+
+    return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
   }
 
   _title(historyType) {
