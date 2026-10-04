@@ -49,7 +49,7 @@
   "services": {
     "push_to_influxdb": {
       "name": "Push recorder history to InfluxDB",
-      "description": "Queues selected entities and time ranges for the background history push worker. The current push implementation only logs its arguments.",
+      "description": "Copies selected entities and time ranges to InfluxDB. Actual copying is done by a background worker.",
       "fields": {
         "entities": {
           "name": "Entities",
@@ -77,7 +77,7 @@
         },
         "chunk_size": {
           "name": "Chunk size",
-          "description": "Maximum number of history records to handle per batch when copying is implemented."
+          "description": "Maximum number of history records to handle per batch."
         }
       }
     }

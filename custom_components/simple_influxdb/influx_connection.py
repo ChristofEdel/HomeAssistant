@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from collections.abc import Callable
 from contextlib import suppress
 from influxdb_client.client.influxdb_client import InfluxDBClient as InfluxDBClientV2
-from influxdb_client.client.write_api import ASYNCHRONOUS, SYNCHRONOUS
+from influxdb_client.client.write_api import SYNCHRONOUS
 from influxdb_client.rest import ApiException
 import urllib3.exceptions
 
@@ -32,7 +32,7 @@ class InfluxClient:
 
 
 def get_influx_connection(  # noqa: C901
-    conf, test_write=False, test_read=False, synchronous=False
+    conf, test_write=False, test_read=False
 ) -> InfluxClient:
     """Create the correct influx connection for the API version."""
     kwargs: dict[str, Any] = {
@@ -50,8 +50,7 @@ def get_influx_connection(  # noqa: C901
     bucket = conf.get(CONF_BUCKET)
     influx = InfluxDBClientV2(**kwargs)
     query_api = influx.query_api()
-    initial_write_mode = SYNCHRONOUS if test_write or synchronous else ASYNCHRONOUS
-    write_api = influx.write_api(write_options=initial_write_mode)
+    write_api = influx.write_api(write_options=SYNCHRONOUS)
 
     def write_v2(json):
         """Write data to V2 influx."""
@@ -90,8 +89,6 @@ def get_influx_connection(  # noqa: C901
         # Then invalid inputs is returned. Anything else is a broken config
         with suppress(ValueError):
             write_v2(b"")
-        if not synchronous:
-            write_api = influx.write_api(write_options=ASYNCHRONOUS)
 
     if test_read:
         tables = query_v2("buckets()")

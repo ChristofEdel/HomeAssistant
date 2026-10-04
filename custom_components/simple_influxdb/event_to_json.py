@@ -2,6 +2,8 @@
 
 import copy
 from collections.abc import Callable
+from fnmatch import fnmatchcase
+from functools import lru_cache
 from typing import Any
 
 from homeassistant.components.recorder.entity_options import is_entity_recorded
@@ -10,7 +12,7 @@ from homeassistant.core import Event, State, HomeAssistant
 from homeassistant.helpers.entityfilter import (convert_include_exclude_filter)
 from homeassistant.helpers.recorder import DATA_INSTANCE
 
-from .const import CONF_EXCLUDE_UNRECORDED
+from .const import CONF_EXCLUDE_UNRECORDED, CONF_TABLES
 
 PROPERTY_ATTRIBUTES_BY_DOMAIN = {
     "climate": {
@@ -45,6 +47,16 @@ def get_event_to_json(
 
 
     entity_filter = convert_include_exclude_filter(conf)
+    explicit_tables: dict[str, str] = {}
+    glob_tables: list[tuple[str, str]] = []
+    for table in conf.get(CONF_TABLES, []):
+        for entity_id in table["entities"]:
+            explicit_tables.setdefault(entity_id, table["name"])
+        glob_tables.extend((table["name"], glob) for glob in table["entity_globs"])
+
+    @lru_cache(maxsize=8192)
+    def glob_table(entity_id: str) -> str | None:
+        return next((name for name, glob in glob_tables if fnmatchcase(entity_id, glob)), None)
 
     def event_to_json(event: Event) -> list[dict[str, Any]] | None:
         """Convert event into json in format Influx expects."""
@@ -53,13 +65,15 @@ def get_event_to_json(
 
         # get the event state, and skip filtered entities
         entity_id = event.data["entity_id"]
-        if apply_filter and not entity_filter(entity_id):
+        explicit_table = explicit_tables.get(entity_id)
+        if apply_filter and explicit_table is None and not entity_filter(entity_id):
             return None
         if apply_filter and conf.get(CONF_EXCLUDE_UNRECORDED, True) and (
             DATA_INSTANCE not in hass.data or not is_entity_recorded(hass, entity_id)
         ):
             return None
-        domain, object_id = entity_id.split(".", 1)
+        domain = entity_id.split(".", 1)[0]
+        measurement = explicit_table or (glob_table(entity_id) if glob_tables else None) or domain
         state: State | None = event.data.get("new_state")
         old_state: State | None = event.data.get("old_state")
 
@@ -78,9 +92,9 @@ def get_event_to_json(
         # Assemble the JSON common for all entries
         base_json: dict[str, Any] = {
             "time": event.time_fired,
-            "measurement": domain,          # table / "measurement"
+            "measurement": measurement,          # table / "measurement"
             "tags": {
-                "entity_id": object_id,
+                "entity_id": entity_id,
             },
             "fields": {},
         }

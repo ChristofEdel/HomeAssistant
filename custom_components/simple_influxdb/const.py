@@ -17,6 +17,7 @@ CONF_MAX_RETRIES="max_retries"
 CONF_INCLUDE="include"
 CONF_EXCLUDE="exclude"
 CONF_EXCLUDE_UNRECORDED="exclude_unrecorded"
+CONF_TABLES="tables"
 CONF_PRECISION = "precision"
 CONF_BUCKET = "bucket"
 

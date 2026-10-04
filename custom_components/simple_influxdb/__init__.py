@@ -18,6 +18,7 @@ from .const import (
     CONF_INCLUDE,
     CONF_EXCLUDE,
     CONF_EXCLUDE_UNRECORDED,
+    CONF_TABLES,
     SERVICE_PUSH_TO_INFLUXDB,
 )
 from .influx_thread import InfluxThread
@@ -39,6 +40,11 @@ CONFIG_SCHEMA = vol.Schema(
         DOMAIN: INCLUDE_EXCLUDE_BASE_FILTER_SCHEMA.extend( {
             vol.Optional(CONF_MAX_RETRIES, default=0): cv.positive_int,
             vol.Optional(CONF_EXCLUDE_UNRECORDED, default=True): cv.boolean,
+            vol.Optional(CONF_TABLES, default=[]): [vol.Schema({
+                vol.Required("name"): vol.All(cv.string, vol.Length(min=1)),
+                vol.Optional("entities", default=[]): cv.entity_ids,
+                vol.Optional("entity_globs", default=[]): vol.All(cv.ensure_list, [cv.string]),
+            })],
         })
     },
     extra=vol.ALLOW_EXTRA,
@@ -86,6 +92,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: InfluxDBConfigEntry) -> 
         CONF_INCLUDE: influx_yaml.get(CONF_INCLUDE, default_filter_settings),
         CONF_EXCLUDE: influx_yaml.get(CONF_EXCLUDE, default_filter_settings),
         CONF_EXCLUDE_UNRECORDED: influx_yaml.get(CONF_EXCLUDE_UNRECORDED, True),
+        CONF_TABLES: influx_yaml.get(CONF_TABLES, []),
     }
 
     # Try to connect to the InfluxDB database.
