@@ -81,3 +81,11 @@ recorder:
       - "*.outdoor_iss_*rain*"
     entities:
       - sensor.davis_weatherlink_last_update
+
+simple_influxdb:
+  tables:
+    - name: weather
+      entity_globs:
+        - "*.outdoor_iss_*"
+        - "*.soil_station_*"
+        - "*.console_*"
